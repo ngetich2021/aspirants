@@ -2,7 +2,7 @@ import prisma from "@/lib/prisma";
 import { Suspense } from "react";
 import ActivitiesClient from "./_components/ActivitiesClient";
 
-export const revalidate = 30;
+export const revalidate = 1;
 
 export default async function ActivitiesPage({
   searchParams,

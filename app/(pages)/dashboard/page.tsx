@@ -2,7 +2,7 @@
 import { prisma } from "@/lib/prisma";
 import MessagesClient from "./_components/MessagesClient";
 
-export const revalidate = 60; // Optional: revalidate every 60 seconds
+export const revalidate = 1; // Optional: revalidate every 60 seconds
 
 export default async function DashboardPage({
   searchParams,

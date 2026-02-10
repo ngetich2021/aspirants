@@ -2,7 +2,7 @@ import prisma from "@/lib/prisma";
 import TeamClient from "./_components/TeamClient";
 import { getUsersStationsDesignations } from "./_components/actionsTeam";
 
-export const revalidate = 3;
+export const revalidate = 1;
 
 export default async function TeamPage() {
   const { users, stations, designations } = await getUsersStationsDesignations();

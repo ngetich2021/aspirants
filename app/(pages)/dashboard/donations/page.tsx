@@ -2,6 +2,8 @@
 import { prisma } from '@/lib/prisma';
 import DonationsClient from './_components/DonationsClient';
 
+export const revalidate = 1;
+
 async function getTotals() {
   const [fundsSum, giftsCount, agentsCount] = await Promise.all([
     prisma.funds.aggregate({ _sum: { amount: true } }),
