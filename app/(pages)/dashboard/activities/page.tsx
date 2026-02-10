@@ -4,18 +4,18 @@ import ActivitiesClient from "./_components/ActivitiesClient";
 
 export const revalidate = 30;
 
-interface ActivitiesPageProps {
-  searchParams: { 
-    page?: string;
-    limit?: string;
-  };
-}
+export default async function ActivitiesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; limit?: string }>;
+}) {
+  const sp = await searchParams;
 
-export default async function ActivitiesPage({ searchParams }: ActivitiesPageProps) {
-  const page = Number(searchParams.page) || 1;
+  const page = Number(sp.page) || 1;
+
   const limitOptions = [20, 50, 100, 250, 500, 1000, 5000];
-  const limit = limitOptions.includes(Number(searchParams.limit))
-    ? Number(searchParams.limit)
+  const limit = limitOptions.includes(Number(sp.limit))
+    ? Number(sp.limit)
     : 50;
 
   const skip = (page - 1) * limit;
