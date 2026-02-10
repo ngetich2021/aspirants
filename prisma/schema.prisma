@@ -1,0 +1,192 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String      @id @default(cuid())
+  name          String?
+  email         String?     @unique
+  image         String?
+  emailVerified DateTime?
+  profile       Profile?
+  accounts      Account[]
+  sessions      Session[]
+  activity      Activity[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  expenses      Expense[]
+  officials     Officials[]
+}
+
+model Profile {
+  userId    String   @id
+  role      String   @default("user")
+  email     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+
+  refresh_token String?
+  access_token  String?
+  expires_at    Int?
+  token_type    String?
+  scope         String?
+  id_token      String?
+  session_state String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
+model Aspirant {
+  id               String         @id @default(cuid())
+  fullName         String
+  tel              String         @unique
+  position         String
+  pollingStationId String
+  pollingStation   PollingStation @relation(fields: [pollingStationId], references: [id], onDelete: Cascade)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+model Officials {
+  id               String         @id @default(cuid())
+  userId           String         @unique
+  fullName         String
+  designationId    String // ← new relation
+  designation      Designation    @relation(fields: [designationId], references: [id], onDelete: SetNull)
+  tel              String         @unique
+  tel2             String?
+  image            String
+  pollingStationId String
+  pollingStation   PollingStation @relation(fields: [pollingStationId], references: [id], onDelete: Cascade)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model PollingStation {
+  id        String      @id @unique
+  name      String
+  county    String
+  subCounty String
+  ward      String
+  votes     Int
+  aspirants Aspirant[]
+  agents    Agent[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  officials Officials[]
+}
+
+model Agent {
+  id               String         @id @default(cuid())
+  fullName         String
+  tel              String         @unique
+  tel2             String?
+  position         String
+  pollingStationId String
+  pollingStation   PollingStation @relation(fields: [pollingStationId], references: [id], onDelete: Cascade)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+model Activity {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  supervisor  String
+  addedById   String
+  status      String
+  image       String
+  report      Report[]
+  user        User     @relation(fields: [addedById], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Report {
+  id         String   @id @default(cuid())
+  report     String
+  activityId String
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Funds {
+  id        String   @id @default(cuid())
+  name      String?
+  amount    Int
+  tel       String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Gifts {
+  id        String   @id @default(cuid())
+  name      String?
+  describe  String
+  tel       String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Expense {
+  id        String   @id @default(cuid())
+  describe  String?
+  amount    Int
+  addedById String
+  user      User     @relation(fields: [addedById], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  name           String
+  tel            String
+  pollingStation String
+  message        String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Designation {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  description String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  officials   Officials[]
+}
