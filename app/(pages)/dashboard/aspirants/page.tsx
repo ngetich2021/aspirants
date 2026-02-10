@@ -1,21 +1,25 @@
+// app/(pages)/dashboard/aspirants/page.tsx
 import prisma from "@/lib/prisma";
 import AspirantsClient from "./_components/AspirantsClient";
 import { Suspense } from "react";
 
-export const revalidate = 1;
+export const revalidate = 1; // or 30 / 60 / whatever makes sense for your use-case
 
-interface AspirantsPageProps {
-  searchParams: { 
-    page?: string;
-    limit?: string;
-  };
-}
+export default async function AspirantsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; limit?: string }>;
+}) {
+  // Await the promise – this is required in Next.js 15+
+  const params = await searchParams;
 
-export default async function AspirantsPage({ searchParams }: AspirantsPageProps) {
-  const page = Number(searchParams.page) || 1;
-  const limit = [20, 50, 100, 250, 500, 1000, 5000].includes(Number(searchParams.limit))
-    ? Number(searchParams.limit)
-    : 50; // default to 50
+  // Parse pagination values safely
+  const page = Math.max(1, Number(params.page) || 1);
+
+  const limitOptions = [20, 50, 100, 250, 500, 1000, 5000];
+  const limit = limitOptions.includes(Number(params.limit))
+    ? Number(params.limit)
+    : 50;
 
   const skip = (page - 1) * limit;
 
