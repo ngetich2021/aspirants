@@ -1,51 +1,56 @@
 // app/dashboard/page.tsx
-import { prisma } from '@/lib/prisma'; // adjust path to your Prisma client
-import MessagesClient from './_components/MessagesClient';
+import { prisma } from "@/lib/prisma";
+import MessagesClient from "./_components/MessagesClient";
 
-interface SearchParams {
-  page?: string;
-  size?: string;
-}
+export const revalidate = 60; // Optional: revalidate every 60 seconds
 
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: SearchParams;
+  searchParams: Promise<{ page?: string; size?: string }>;
 }) {
-  const page = Number(searchParams.page) || 1;
-  const size = Number(searchParams.size) || 20;
+  const params = await searchParams;
 
-  if (page < 1 || size < 1) {
-    // You could redirect or show error — for simplicity we clamp
-  }
+  // Parse and sanitize pagination params
+  const page = Math.max(1, Number(params.page) || 1);
+  const sizeOptions = [20, 50, 100, 200, 500, 1000, 5000];
+  const size = sizeOptions.includes(Number(params.size))
+    ? Number(params.size)
+    : 20;
 
-  const [messages, total] = await Promise.all([
+  const skip = (page - 1) * size;
+
+  const [messages, totalCount] = await Promise.all([
     prisma.message.findMany({
       take: size,
-      skip: (page - 1) * size,
-      orderBy: { createdAt: 'desc' },
+      skip,
+      orderBy: { createdAt: "desc" },
       select: {
         id: true,
         name: true,
         tel: true,
         pollingStation: true,
         createdAt: true,
-        message: true, // we send message content — only if dataset is small!
+        message: true,
       },
     }),
     prisma.message.count(),
   ]);
 
-  // Format dates for client (optional — can also do in client)
+  // Format dates once on the server (better consistency & performance)
   const formattedMessages = messages.map((msg) => ({
-    ...msg,
-    createdAt: msg.createdAt.toISOString().split('T')[0], // or use date-fns/luxon
+    id: msg.id,
+    name: msg.name,
+    tel: msg.tel,
+    pollingStation: msg.pollingStation,
+    message: msg.message,
+    createdAt: msg.createdAt.toISOString().split("T")[0], // YYYY-MM-DD
   }));
 
   return (
     <MessagesClient
       initialMessages={formattedMessages}
-      total={total}
+      total={totalCount}
       currentPage={page}
       pageSize={size}
     />
