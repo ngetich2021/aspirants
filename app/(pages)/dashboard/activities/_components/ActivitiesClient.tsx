@@ -175,7 +175,7 @@ export default function ActivitiesClient({
             onClick={() => openModal("add")}
             className="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2"
           >
-            <Plus className="w-5 h-5" /> + Activity
+            <Plus className="w-5 h-5" /> Activity
           </button>
         </div>
 

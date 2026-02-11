@@ -1,88 +1,63 @@
-// middleware.ts
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 
-const protectedRoutes = [
-  "/admin",
-  "/admin/:path*",
-  "/dashboard",
-  "/dashboard/:path*",
-  "/hospital",
-  "/hospital/:path*",
-  "/pharmacy",
-  "/pharmacy/:path*",
-  "/reports",
-  "/reports/:path*",
-  "/staff",
-  "/staff/:path*",
-   "/suppliers",
-  "/suppliers/:path*",
-   "/payments",
-  "/payments/:path*",
-    "/labs",
-  "/labs/:path*",
-   "/patients",
-  "/patients/:path*",
-   "/expenses",
-  "/expenses/:path*",
-  "/booking",
-  "/booking/:path*",
-  "/assets",
-  "/assets/:path*",
-];
+// Define strict access map
+const ROLE_PERMISSIONS: Record<string, string[]> = {
+  "/dashboard/activities": ["secretary", "sg", "chairman", "leader"],
+  "/dashboard/donations": ["treasurer", "chairman", "leader"],
+  "/dashboard/expenses": ["treasurer", "chairman", "leader"],
+  "/dashboard/pollingStations": ["sg", "chairman", "leader"],
+  "/dashboard/aspirants": ["chairman", "leader"],
+  "/dashboard/team": ["chairman", "leader"],
+  "/dashboard": ["secretary", "treasurer", "sg", "chairman", "leader"],
+};
+
+// All valid administrative roles
+const ALL_ALLOWED_ROLES = ["secretary", "treasurer", "sg", "chairman", "leader"];
 
 export default auth((req) => {
   const { nextUrl } = req;
   const session = req.auth;
+  
+  // Clean the role string (remove extra spaces like "leader ")
+  const userRole = session?.user?.role?.toLowerCase().trim();
 
-  // Helper: check if current path matches any protected route (exact or prefix)
-  const isProtected = protectedRoutes.some((route) => {
-    const base = route.replace("/:path*", "");
-    return nextUrl.pathname === base || nextUrl.pathname.startsWith(`${base}/`);
-  });
+  const isDashboardRoute = nextUrl.pathname.startsWith("/dashboard");
 
-  if (!isProtected) {
-    return NextResponse.next();
-  }
+  // Only run logic on dashboard routes
+  if (!isDashboardRoute) return NextResponse.next();
 
-  // Case 1: Not authenticated → redirect to login/home with optional "from" tracking
+  // 1. Not logged in -> Redirect to landing page
   if (!session?.user) {
-    const loginUrl = new URL("/", nextUrl); // or "/login" if you move it
-    loginUrl.searchParams.set("from", nextUrl.pathname);
-    return NextResponse.redirect(loginUrl);
+    return NextResponse.redirect(new URL("/", nextUrl.origin));
   }
 
-  // Case 2: Authenticated but no admin role → FORCE sign-out
-  if (session.user.role !== "admin") {
+  // 2. STRICT CHECK: Is the user's role recognized at all?
+  // If they have a "user" role or something not in your list, KILL the session.
+  if (!userRole || !ALL_ALLOWED_ROLES.includes(userRole)) {
     const signOutUrl = new URL("/api/auth/signout", nextUrl.origin);
-
-    // After sign-out, try the original protected path again (user will need to pick correct account)
-    signOutUrl.searchParams.set("callbackUrl", nextUrl.pathname + nextUrl.search);
-
-    // Optional: add hint param for UI message on home page
-    // signOutUrl.searchParams.set("reason", "no-access");
-
+    // After signout, send them to home with an error message
+    signOutUrl.searchParams.set("callbackUrl", "/?error=UnauthorizedRole");
     return NextResponse.redirect(signOutUrl);
   }
 
-  // Case 3: Good to go
+  // 3. SPECIFIC PATH CHECK: User has a valid role, but are they allowed HERE?
+  // Example: A Treasurer trying to enter /dashboard/activities
+  const matchingPath = Object.keys(ROLE_PERMISSIONS).find(path => 
+    nextUrl.pathname === path || nextUrl.pathname.startsWith(`${path}/`)
+  );
+
+  const allowedRolesForPath = matchingPath ? ROLE_PERMISSIONS[matchingPath] : [];
+
+  if (allowedRolesForPath.length > 0 && !allowedRolesForPath.includes(userRole)) {
+    // They are a valid team member, but in the wrong section. 
+    // Just bounce them back to the main dashboard instead of signing them out.
+    return NextResponse.redirect(new URL("/dashboard?error=NoPermission", nextUrl.origin));
+  }
+
   return NextResponse.next();
 });
 
 export const config = {
-  matcher: [
-    "/admin/:path*",
-    "/dashboard/:path*",
-    "/hospital/:path*",
-    "/pharmacy/:path*",
-    "/reports/:path*",
-    "/staff/:path*",
-    "/suppliers/:path*",
-    "/payments/:path*",
-    "/labs/:path*",
-    "/patients/:path*",
-    "/expenses/:path*",
-    "/booking/:path*",
-    "/assets/:path*",
-  ],
+  matcher: ["/dashboard/:path*"],
 };

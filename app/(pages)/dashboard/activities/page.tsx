@@ -38,7 +38,7 @@ export default async function ActivitiesPage({
 
     prisma.activity.count(),
 
-    prisma.officials.findMany({
+    prisma.profile.findMany({
       select: {
         fullName: true,
       },
@@ -56,7 +56,7 @@ export default async function ActivitiesPage({
         currentPage={page}
         totalPages={totalPages}
         limit={limit}
-        officials={officials.map((o) => o.fullName)}
+        officials={officials.map((o) => o.fullName || '')}
       />
     </Suspense>
   );

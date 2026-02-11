@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { deleteDesignationAction, getDesignationsAction } from './actionsTeam';
 import AddDesignation from './AddDesignation';
+import { deleteDesignationAction, getDesignationsAction } from './actionsTeam';
 
 interface Designation {
   id: string;

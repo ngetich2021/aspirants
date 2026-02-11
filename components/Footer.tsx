@@ -54,7 +54,7 @@ export default function Footer() {
             href="https://whatsapp.com" 
             className="text-gray-600 text-[1.8vw] md:text-sm break-all hover:underline"
           >
-            https://whatap
+            https://chat.whatsapp.com/Hv2MpzTAtFqFHoWwWYJjjz
           </a>
         </div>
 

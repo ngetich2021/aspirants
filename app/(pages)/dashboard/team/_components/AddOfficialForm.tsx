@@ -26,7 +26,13 @@ interface Props {
   } | null;
 }
 
-export default function AddOfficialForm({ users, stations, designations, onClose, initialOfficial }: Props) {
+export default function AddOfficialForm({
+  users,
+  stations,
+  designations,
+  onClose,
+  initialOfficial,
+}: Props) {
   const isEdit = !!initialOfficial;
 
   const [selectedEmail, setSelectedEmail] = useState(initialOfficial?.user.email || "");
@@ -41,7 +47,8 @@ export default function AddOfficialForm({ users, stations, designations, onClose
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const getUserId = () => users.find(u => u.email === selectedEmail)?.id || initialOfficial?.userId || "";
+  const getUserId = () =>
+    users.find((u) => u.email === selectedEmail)?.id || initialOfficial?.userId || "";
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -54,13 +61,13 @@ export default function AddOfficialForm({ users, stations, designations, onClose
     try {
       const res = await saveOfficialAction(data);
       if (res.success) {
-        alert(isEdit ? "Updated" : "Added");
+        alert(isEdit ? "Official updated" : "Official added");
         onClose();
       } else {
-        setError(res.error || "Failed");
+        setError(res.error || "Operation failed");
       }
     } catch {
-      setError("Error saving");
+      setError("Network or server error");
     } finally {
       setSubmitting(false);
     }
@@ -85,52 +92,66 @@ export default function AddOfficialForm({ users, stations, designations, onClose
         <input type="hidden" name="userId" value={getUserId()} />
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">User <span className="text-red-500">*</span></label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            User <span className="text-red-500">*</span>
+          </label>
           <select
             value={selectedEmail}
-            onChange={e => setSelectedEmail(e.target.value)}
+            onChange={(e) => setSelectedEmail(e.target.value)}
             required
             className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#6E1AF3]"
           >
             <option value="">Select user</option>
-            {users.map(u => <option key={u.id} value={u.email}>{u.email}</option>)}
+            {users.map((u) => (
+              <option key={u.id} value={u.email}>
+                {u.email}
+              </option>
+            ))}
           </select>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Full Name <span className="text-red-500">*</span></label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Full Name <span className="text-red-500">*</span>
+          </label>
           <input
             name="fullName"
             value={form.fullName}
-            onChange={e => setForm({ ...form, fullName: e.target.value })}
+            onChange={(e) => setForm({ ...form, fullName: e.target.value })}
             required
             className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#6E1AF3]"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Designation <span className="text-red-500">*</span></label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Designation <span className="text-red-500">*</span>
+          </label>
           <select
             name="designation"
             value={form.designationId}
-            onChange={e => setForm({ ...form, designationId: e.target.value })}
+            onChange={(e) => setForm({ ...form, designationId: e.target.value })}
             required
             className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#6E1AF3]"
           >
             <option value="">Select designation</option>
-            {designations.map(d => (
-              <option key={d.id} value={d.id}>{d.name}</option>
+            {designations.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
             ))}
           </select>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Primary Phone <span className="text-red-500">*</span></label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Primary Phone <span className="text-red-500">*</span>
+          </label>
           <input
             name="tel"
             type="tel"
             value={form.tel}
-            onChange={e => setForm({ ...form, tel: e.target.value })}
+            onChange={(e) => setForm({ ...form, tel: e.target.value })}
             required
             className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#6E1AF3]"
           />
@@ -142,30 +163,34 @@ export default function AddOfficialForm({ users, stations, designations, onClose
             name="tel2"
             type="tel"
             value={form.tel2}
-            onChange={e => setForm({ ...form, tel2: e.target.value })}
+            onChange={(e) => setForm({ ...form, tel2: e.target.value })}
             className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#6E1AF3]"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Polling Station <span className="text-red-500">*</span></label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Polling Station <span className="text-red-500">*</span>
+          </label>
           <select
-            name="station"
+            name="station"  // must match formData.get("station") in action
             value={form.stationId}
-            onChange={e => setForm({ ...form, stationId: e.target.value })}
+            onChange={(e) => setForm({ ...form, stationId: e.target.value })}
             required
             className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#6E1AF3]"
           >
             <option value="">Select station</option>
-            {stations.map(s => (
-              <option key={s.id} value={s.id}>{s.name}</option>
+            {stations.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
             ))}
           </select>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Profile Photo <span className="text-red-500">*</span>
+            Profile Photo {isEdit ? "" : <span className="text-red-500">*</span>}
           </label>
           <input
             type="file"
@@ -176,13 +201,13 @@ export default function AddOfficialForm({ users, stations, designations, onClose
           />
           {isEdit && initialOfficial?.image && (
             <div className="mt-3">
-              <p className="text-sm text-gray-500">Current photo:</p>
+              <p className="text-sm text-gray-500">Current:</p>
               <Image
                 src={initialOfficial.image}
-                alt="Current official photo"
+                alt="Current photo"
+                width={80}
+                height={80}
                 className="mt-2 h-20 w-20 object-cover rounded-md border shadow-sm"
-                width={20}
-                height={20}
               />
               <p className="text-xs text-gray-500 mt-1">Upload new to replace</p>
             </div>
@@ -190,7 +215,11 @@ export default function AddOfficialForm({ users, stations, designations, onClose
         </div>
 
         <div className="flex gap-4 pt-8">
-          <button type="button" onClick={onClose} className="flex-1 py-3 border rounded-lg hover:bg-gray-50">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 py-3 border rounded-lg hover:bg-gray-50"
+          >
             Cancel
           </button>
           <button

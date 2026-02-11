@@ -1,9 +1,10 @@
+// app/team/_components/actionsTeam.ts
 'use server';
 
-import prisma from "@/lib/prisma";
-import { revalidatePath } from "next/cache";
-import { v2 as cloudinary } from "cloudinary";
-import type { UploadApiResponse, UploadApiErrorResponse } from "cloudinary";
+import prisma from '@/lib/prisma';
+import { revalidatePath } from 'next/cache';
+import { v2 as cloudinary } from 'cloudinary';
+import type { UploadApiResponse } from 'cloudinary';
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
@@ -12,9 +13,9 @@ cloudinary.config({
   secure:     true,
 });
 
-type ActionResult =
-  | { success: true }
-  | { success: false; error: string };
+type ActionResult = { success: true } | { success: false; error: string };
+
+// ── Officials ───────────────────────────────────────────────
 
 export async function saveOfficialAction(formData: FormData): Promise<ActionResult> {
   const userId           = formData.get("userId") as string | null;
@@ -31,14 +32,17 @@ export async function saveOfficialAction(formData: FormData): Promise<ActionResu
   if (!stationRaw)       return { success: false, error: "Polling station is required" };
 
   const fullName         = fullNameRaw?.trim() || "Unnamed Official";
-  const designationId    = designationIdRaw?.trim() ?? "";
-  const tel              = telRaw?.trim() ?? "";
+  const designationId    = designationIdRaw.trim();
+  const tel              = telRaw.trim();
   const tel2             = tel2Raw?.trim() ?? null;
-  const pollingStationId = stationRaw?.trim() ?? "";
+  const pollingStationId = stationRaw.trim();
 
-  if (!designationId)    return { success: false, error: "Designation is required" };
-  if (!tel)              return { success: false, error: "Primary phone is required" };
-  if (!pollingStationId) return { success: false, error: "Polling station is required" };
+  const designation = await prisma.designation.findUnique({
+    where: { id: designationId },
+    select: { name: true },
+  });
+
+  if (!designation) return { success: false, error: "Selected designation not found" };
 
   let imageUrl: string;
 
@@ -58,51 +62,35 @@ export async function saveOfficialAction(formData: FormData): Promise<ActionResu
             height:       800,
             crop:         "limit",
           },
-          (error: UploadApiErrorResponse | undefined, result: UploadApiResponse | undefined) => {
-            if (error) reject(error);
-            else if (result) resolve(result);
-            else reject(new Error("Cloudinary upload returned no result"));
-          }
+          (error, result) => error ? reject(error) : result ? resolve(result) : reject(new Error("No result")),
         ).end(buffer);
       });
 
       imageUrl = result.secure_url;
 
-      // Delete previous image if replacing
-      const existing = await prisma.officials.findUnique({
-        where: { userId },
-        select: { image: true },
-      });
-
+      // Clean up old image
+      const existing = await prisma.profile.findUnique({ where: { userId }, select: { image: true } });
       if (existing?.image) {
-        const match = existing.image.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
-        if (match?.[1]) {
-          await cloudinary.uploader.destroy(match[1]).catch(() => {});
-        }
+        const publicId = getPublicIdFromUrl(existing.image);
+        if (publicId) cloudinary.uploader.destroy(publicId).catch(() => {});
       }
     } catch (err) {
       console.error("Cloudinary upload failed:", err);
-      return { success: false, error: "Failed to upload profile photo" };
+      return { success: false, error: "Failed to upload photo" };
     }
   } else {
-    const existing = await prisma.officials.findUnique({
-      where: { userId },
-      select: { image: true },
-    });
-
-    if (!existing?.image) {
-      return { success: false, error: "Profile photo is required (no existing photo found)" };
-    }
-
+    const existing = await prisma.profile.findUnique({ where: { userId }, select: { image: true } });
+    if (!existing?.image) return { success: false, error: "Profile photo is required" };
     imageUrl = existing.image;
   }
 
   try {
-    await prisma.officials.upsert({
+    await prisma.profile.upsert({
       where: { userId },
       update: {
         fullName,
         designationId,
+        role: designation.name,
         tel,
         tel2,
         pollingStationId,
@@ -112,6 +100,7 @@ export async function saveOfficialAction(formData: FormData): Promise<ActionResu
         userId,
         fullName,
         designationId,
+        role: designation.name,
         tel,
         tel2,
         pollingStationId,
@@ -129,90 +118,83 @@ export async function saveOfficialAction(formData: FormData): Promise<ActionResu
 
 export async function deleteOfficialAction(userId: string): Promise<ActionResult> {
   try {
-    const official = await prisma.officials.findUnique({
+    const official = await prisma.profile.findUnique({
       where: { userId },
       select: { image: true },
     });
 
     if (official?.image) {
-      const match = official.image.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
-      if (match?.[1]) {
-        await cloudinary.uploader.destroy(match[1]).catch(() => {});
-      }
+      const publicId = getPublicIdFromUrl(official.image);
+      if (publicId) cloudinary.uploader.destroy(publicId).catch(() => {});
     }
 
-    await prisma.officials.delete({ where: { userId } });
+    await prisma.profile.delete({ where: { userId } });
     revalidatePath("/team", "page");
     return { success: true };
   } catch (error) {
     console.error("Delete failed:", error);
-    return { success: false, error: "Failed to delete official" };
+    return { success: false, error: "Failed to delete" };
   }
 }
 
-export async function addDesignationAction(formData: FormData): Promise<ActionResult> {
-  const nameRaw        = formData.get("name") as string | null;
-  const descriptionRaw = formData.get("description") as string | null;
+// ── Designations ────────────────────────────────────────────
 
-  const name        = nameRaw?.trim() ?? "";
-  const description = descriptionRaw?.trim() ?? "";
+export async function addDesignationAction(formData: FormData): Promise<ActionResult> {
+  const name        = (formData.get("name") as string)?.trim();
+  const description = (formData.get("description") as string)?.trim() || null;
 
   if (!name) return { success: false, error: "Name is required" };
 
   try {
     await prisma.designation.create({
-      data: {
-        name,
-        description: description || undefined,
-      },
+      data: { name, description },
     });
-    revalidatePath("/team");
+    revalidatePath("/team", "page");
     return { success: true };
-  } catch (error) {
-    console.error("Add designation failed:", error);
-    return { success: false, error: "Failed to add designation" };
+  } catch (err) {
+    console.error("Add designation failed:", err);
+    return { success: false, error: "Failed to create designation (name may already exist)" };
   }
 }
 
 export async function editDesignationAction(formData: FormData): Promise<ActionResult> {
-  const idRaw          = formData.get("id") as string | null;
-  const nameRaw        = formData.get("name") as string | null;
-  const descriptionRaw = formData.get("description") as string | null;
-
-  const id          = idRaw?.trim() ?? "";
-  const name        = nameRaw?.trim() ?? "";
-  const description = descriptionRaw?.trim() ?? "";
+  const id          = formData.get("id") as string;
+  const name        = (formData.get("name") as string)?.trim();
+  const description = (formData.get("description") as string)?.trim() || null;
 
   if (!id || !name) return { success: false, error: "ID and name are required" };
 
   try {
     await prisma.designation.update({
       where: { id },
-      data: {
-        name,
-        description: description || undefined,
-      },
+      data: { name, description },
     });
-    revalidatePath("/team");
+    revalidatePath("/team", "page");
     return { success: true };
-  } catch (error) {
-    console.error("Edit designation failed:", error);
+  } catch (err) {
+    console.error("Edit designation failed:", err);
     return { success: false, error: "Failed to update designation" };
   }
 }
 
 export async function deleteDesignationAction(formData: FormData): Promise<ActionResult> {
-  const id = (formData.get("id") as string | null)?.trim() ?? "";
+  const id = formData.get("id") as string;
 
-  if (!id) return { success: false, error: "ID required" };
+  if (!id) return { success: false, error: "ID is required" };
 
   try {
+    // Optional: check if used in profiles
+    const usageCount = await prisma.profile.count({ where: { designationId: id } });
+    if (usageCount > 0) {
+      return { success: false, error: `Cannot delete – used by ${usageCount} official(s)` };
+    }
+
     await prisma.designation.delete({ where: { id } });
-    revalidatePath("/team");
+    revalidatePath("/team", "page");
     return { success: true };
-  } catch (error) {
-    console.error("Delete designation failed:", error);
-    return { success: false, error: "Failed to delete designation (may be in use)" };
+  } catch (err) {
+    console.error("Delete designation failed:", err);
+    return { success: false, error: "Failed to delete designation" };
   }
 }
 
@@ -240,4 +222,19 @@ export async function getUsersStationsDesignations() {
   ]);
 
   return { users, stations, designations };
+}
+
+// Helper
+function getPublicIdFromUrl(url: string): string | null {
+  try {
+    const parts = url.split('/');
+    const uploadIdx = parts.indexOf('upload');
+    if (uploadIdx === -1) return null;
+    let start = uploadIdx + 1;
+    if (/^v\d+$/.test(parts[start])) start++;
+    const idWithExt = parts.slice(start).join('/');
+    return idWithExt.replace(/\.[^.]+$/, '');
+  } catch {
+    return null;
+  }
 }
