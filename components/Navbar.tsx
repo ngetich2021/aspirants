@@ -7,7 +7,7 @@ import React, { useState } from 'react';
 import JoinUs from './JoinUs';
 import SupportUs from './SupportUs';
 import { useModal } from './ModalContext';
-import type { PollingStation } from './JoinUs'; // assuming you export the type
+import type { PollingStation } from './JoinUs';
 
 interface NavbarProps {
   stations: PollingStation[];
@@ -21,10 +21,12 @@ export default function Navbar({ stations }: NavbarProps) {
 
   const handleFlagClick = () => {
     const newCount = clickCount + 1;
-    if (newCount >= 5) {
+    setClickCount(newCount);
+
+    // STRICT VERSION: only triggers EXACTLY on the 5th click
+    if (newCount === 5) {
       router.push('/welcome');
-    } else {
-      setClickCount(newCount);
+      setClickCount(0);           // reset counter immediately after trigger
     }
   };
 
@@ -43,7 +45,7 @@ export default function Navbar({ stations }: NavbarProps) {
 
   return (
     <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
-      {/* Desktop version */}
+      {/* Desktop / Large screens */}
       <div className="hidden lg:flex h-16 px-6 xl:px-12 items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="relative h-11 w-11 shrink-0 rounded-full overflow-hidden border border-gray-200">
@@ -79,28 +81,54 @@ export default function Navbar({ stations }: NavbarProps) {
               </button>
             )
           )}
-          <div className="w-6 h-6 relative cursor-pointer" onClick={handleFlagClick}>
-            <Image src="/kenya2.png" alt="Kenya" fill className="object-contain" />
+          <div 
+            className="w-6 h-6 relative cursor-pointer" 
+            onClick={handleFlagClick}
+            title="Click exactly 5 times for secret access"
+          >
+            <Image 
+              src="/kenya2.png" 
+              alt="Kenya flag – click exactly 5 times to login" 
+              fill 
+              className="object-contain" 
+            />
           </div>
         </div>
       </div>
 
-      {/* Mobile version – same logic */}
+      {/* Mobile / Small screens */}
       <div className="lg:hidden">
         <div className="h-16 px-4 flex items-center justify-between bg-white border-b border-gray-200">
-          <div className="flex items-center gap-2.5 cursor-pointer" onClick={handleFlagClick}>
+          <div className="flex items-center gap-2.5">
             <Image src="/emc_aspirants_logo.png" alt="Logo" width={36} height={36} className="rounded-full" />
             <p className="text-[10px] font-bold text-red-600">REGISTER WITH PARTY PORTAL</p>
           </div>
-          <button onClick={() => setIsOpen(!isOpen)} className="p-2">
-            <div className="space-y-1.5">
-              <span className={`block w-6 h-0.5 bg-gray-700 transition-all ${isOpen ? 'rotate-45 translate-y-2' : ''}`} />
-              <span className={`block w-6 h-0.5 bg-gray-700 ${isOpen ? 'opacity-0' : ''}`} />
-              <span className={`block w-6 h-0.5 bg-gray-700 transition-all ${isOpen ? '-rotate-45 -translate-y-2' : ''}`} />
+
+          <div className="flex items-center gap-4">
+            <div 
+              className="w-6 h-6 relative cursor-pointer" 
+              onClick={handleFlagClick}
+              title="Click exactly 5 times for secret access"
+            >
+              <Image 
+                src="/kenya2.png" 
+                alt="Kenya flag – click exactly 5 times to login" 
+                fill 
+                className="object-contain" 
+              />
             </div>
-          </button>
+
+            <button onClick={() => setIsOpen(!isOpen)} className="p-2">
+              <div className="space-y-1.5">
+                <span className={`block w-6 h-0.5 bg-gray-700 transition-all ${isOpen ? 'rotate-45 translate-y-2' : ''}`} />
+                <span className={`block w-6 h-0.5 bg-gray-700 ${isOpen ? 'opacity-0' : ''}`} />
+                <span className={`block w-6 h-0.5 bg-gray-700 transition-all ${isOpen ? '-rotate-45 -translate-y-2' : ''}`} />
+              </div>
+            </button>
+          </div>
         </div>
 
+        {/* Mobile slide-out menu */}
         <div
           className={`fixed top-16 right-0 w-64 bg-white shadow-2xl transition-transform duration-300 z-50 ${
             isOpen ? 'translate-x-0' : 'translate-x-full'
@@ -127,7 +155,7 @@ export default function Navbar({ stations }: NavbarProps) {
         </div>
       </div>
 
-      {/* Modals – now controlled by context */}
+      {/* Modals */}
       {activeModal === 'join' && <JoinUs onClose={closeModal} stations={stations} />}
       {activeModal === 'support' && <SupportUs onClose={closeModal} stations={stations} />}
     </nav>
