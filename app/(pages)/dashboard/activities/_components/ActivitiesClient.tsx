@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { MoreVertical, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import ActivityFormModal from "./ActivityFormModal";
-import { deleteActivityAction } from "./actions";
+import { deleteActivityAction, getReportsForActivity } from "./actions";
+import ReportsModal from "./ReportsModal";
+import ReportFormModal from "./ReportFormModal";
 
 interface Activity {
   id: string;
@@ -13,6 +15,12 @@ interface Activity {
   supervisor: string;
   status: string;
   image?: string | null;
+  createdAt: Date;
+}
+
+interface Report {
+  id: string;
+  report: string;
   createdAt: Date;
 }
 
@@ -39,12 +47,18 @@ export default function ActivitiesClient({
   const [isOpen, setIsOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"add" | "edit" | "view">("add");
   const [selectedActivity, setSelectedActivity] = useState<Activity | undefined>();
+
   const [search, setSearch] = useState("");
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [dropdownTop, setDropdownTop] = useState(0);
   const [dropdownLeft, setDropdownLeft] = useState(0);
 
   const [rowsPerPage, setRowsPerPage] = useState(limit);
+
+  // ─── Reports state ───
+  const [reportsModalActivity, setReportsModalActivity] = useState<Activity | null>(null);
+  const [reports, setReports] = useState<Report[]>([]);
+  const [showReportForm, setShowReportForm] = useState(false);
 
   useEffect(() => {
     setRowsPerPage(limit);
@@ -67,7 +81,7 @@ export default function ActivitiesClient({
     const rect = e.currentTarget.getBoundingClientRect();
     const gap = 8;
     const dropdownWidth = 160;
-    const dropdownHeight = 100;
+    const dropdownHeight = 120;
 
     let top = rect.bottom + gap;
     let left = rect.right - dropdownWidth;
@@ -112,6 +126,37 @@ export default function ActivitiesClient({
       console.error("Failed to delete:", error);
       alert("Failed to delete activity.");
     }
+  };
+
+  // ─── Reports handlers ───
+  const loadAndOpenReports = async (activity: Activity) => {
+    try {
+      const data = await getReportsForActivity(activity.id);
+      setReports(data);
+      setReportsModalActivity(activity);
+      setOpenDropdownId(null);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to load reports");
+    }
+  };
+
+  const refreshReports = async () => {
+    if (!reportsModalActivity) return;
+    try {
+      const data = await getReportsForActivity(reportsModalActivity.id);
+      setReports(data);
+    } catch (err) {
+      console.error("Refresh reports failed", err);
+    }
+  };
+
+  const openAddReport = () => {
+    setShowReportForm(true);
+  };
+
+  const closeReportForm = () => {
+    setShowReportForm(false);
   };
 
   const filteredActivities = initialActivities.filter((act) =>
@@ -163,6 +208,7 @@ export default function ActivitiesClient({
   return (
     <main className="min-h-screen bg-gray-100 p-4 sm:p-6">
       <div className="max-w-7xl mx-auto">
+        {/* Header + Add button - unchanged */}
         <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="bg-[#C0A7A7] p-4 rounded-md w-full sm:w-auto">
             <h1 className="text-xl sm:text-2xl font-bold">Total activities</h1>
@@ -179,6 +225,7 @@ export default function ActivitiesClient({
           </button>
         </div>
 
+        {/* Search + entries selector - unchanged */}
         <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 mb-6">
           <input
             type="text"
@@ -205,6 +252,7 @@ export default function ActivitiesClient({
           </div>
         </div>
 
+        {/* Table */}
         <div className="bg-white rounded-lg shadow overflow-x-auto mb-6">
           <table className="w-full min-w-[1100px]">
             <thead className="bg-gray-50 text-xs uppercase tracking-wider">
@@ -271,6 +319,14 @@ export default function ActivitiesClient({
                           >
                             Edit
                           </button>
+
+                          <button
+                            onClick={() => loadAndOpenReports(act)}
+                            className="block w-full text-left px-4 py-2.5 text-sm text-blue-700 hover:bg-blue-50"
+                          >
+                            Reports
+                          </button>
+
                           <button
                             onClick={() => handleDelete(act.id)}
                             className="block w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
@@ -287,6 +343,7 @@ export default function ActivitiesClient({
           </table>
         </div>
 
+        {/* Pagination - unchanged */}
         {totalPages > 1 && (
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-sm">
             <div className="text-gray-600">
@@ -336,6 +393,7 @@ export default function ActivitiesClient({
           </div>
         )}
 
+        {/* Activity Modal */}
         {isOpen && (
           <div className="fixed inset-0 z-50 flex justify-end">
             <div
@@ -368,6 +426,50 @@ export default function ActivitiesClient({
                   officials={officials}
                   onSuccess={handleSuccess}
                   onClose={closeModal}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Reports List Modal */}
+        {reportsModalActivity && !showReportForm && (
+          <ReportsModal
+            activityId={reportsModalActivity.id}
+            activityName={reportsModalActivity.name}
+            reports={reports}
+            onClose={() => setReportsModalActivity(null)}
+            onAddNew={openAddReport}
+            onReportDeleted={refreshReports}
+          />
+        )}
+
+        {/* Add Report Modal (nested) */}
+        {reportsModalActivity && showReportForm && (
+          <div className="fixed inset-0 z-50 flex justify-end">
+            <div
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              onClick={closeReportForm}
+            />
+            <div className="relative w-full max-w-lg bg-white h-full shadow-2xl overflow-hidden flex flex-col">
+              <div className="sticky top-0 z-10 bg-white border-b px-6 py-5 flex justify-between items-center">
+                <h2 className="text-xl font-bold text-gray-900">Add Report</h2>
+                <button
+                  onClick={closeReportForm}
+                  className="text-3xl text-gray-500 hover:text-gray-700 leading-none"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="p-6 overflow-y-auto flex-1">
+                <ReportFormModal
+                  activityId={reportsModalActivity.id}
+                  activityName={reportsModalActivity.name}
+                  onSuccess={() => {
+                    closeReportForm();
+                    refreshReports();
+                  }}
+                  onClose={closeReportForm}
                 />
               </div>
             </div>

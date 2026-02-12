@@ -3,17 +3,17 @@ import { NextResponse } from "next/server";
 
 // Define strict access map
 const ROLE_PERMISSIONS: Record<string, string[]> = {
-  "/dashboard/activities": ["secretary", "sg", "chairman", "leader"],
-  "/dashboard/donations": ["treasurer", "chairman", "leader"],
-  "/dashboard/expenses": ["treasurer", "chairman", "leader"],
-  "/dashboard/pollingStations": ["sg", "chairman", "leader"],
-  "/dashboard/aspirants": ["chairman", "leader"],
-  "/dashboard/team": ["chairman", "leader"],
-  "/dashboard": ["secretary", "treasurer", "sg", "chairman", "leader"],
+  "/dashboard/activities": ["secretary", "sg", "chairperson", "leader"],
+  "/dashboard/donations": ["treasurer", "chairperson", "leader"],
+  "/dashboard/expenses": ["treasurer", "chairperson", "leader"],
+  "/dashboard/pollingStations": ["sg", "chairperson", "leader"],
+  "/dashboard/aspirants": ["chairperson", "leader"],
+  "/dashboard/team": ["chairperson", "leader"],
+  "/dashboard": ["secretary", "treasurer", "sg", "chairperson", "leader"],
 };
 
 // All valid administrative roles
-const ALL_ALLOWED_ROLES = ["secretary", "treasurer", "sg", "chairman", "leader"];
+const ALL_ALLOWED_ROLES = ["secretary", "treasurer", "sg", "chairperson", "leader"];
 
 export default auth((req) => {
   const { nextUrl } = req;

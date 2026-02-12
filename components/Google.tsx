@@ -46,7 +46,7 @@ export default function GoogleSignIn() {
               <p className="font-medium">
                 Need help? Call us at{' '}
                 <a href="tel:+254712345678" className="text-blue-600 hover:text-blue-700 font-bold">
-                  +254 712 345 678
+                  +254 704 876 954
                 </a>
               </p>
               <p className="text-[8px]">

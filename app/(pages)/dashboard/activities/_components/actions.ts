@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { v2 as cloudinary } from "cloudinary";
 import type { UploadApiResponse } from "cloudinary";
-import { auth } from "@/auth"; // ← import from your auth.ts file
+import { auth } from "@/auth";
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
@@ -12,9 +12,9 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET!,
 });
 
-type ActionResult =
+export type ActionResult =
   | { success: true }
-  | { error: string };
+  | { success: false; error: string };
 
 async function requireUserId(): Promise<string> {
   const session = await auth();
@@ -31,13 +31,10 @@ async function uploadImage(file: File): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     cloudinary.uploader
       .upload_stream(
-        {
-          folder: "activities",
-          resource_type: "image",
-        },
+        { folder: "activities", resource_type: "image" },
         (error, result) => {
           if (error) return reject(error);
-          if (!result?.secure_url) return reject(new Error("Upload succeeded but no secure_url"));
+          if (!result?.secure_url) return reject(new Error("No secure_url"));
           resolve(result.secure_url);
         }
       )
@@ -45,40 +42,41 @@ async function uploadImage(file: File): Promise<string> {
   });
 }
 
+// Activity Actions
 export async function saveActivityAction(formData: FormData): Promise<ActionResult> {
   let currentUserId: string;
-
   try {
     currentUserId = await requireUserId();
   } catch (err) {
-    return { error: (err as Error).message || "Authentication required" };
+    return { success: false, error: (err as Error).message || "Authentication required" };
   }
 
   const activityId   = formData.get("activityId")?.toString() ?? null;
-  const name         = (formData.get("name")        ?.toString() ?? "").trim();
-  const description  = (formData.get("description") ?.toString() ?? "").trim();
-  const supervisor   = (formData.get("supervisor")  ?.toString() ?? "").trim();
-  const status       = (formData.get("status")      ?.toString() ?? "pending").trim();
-  const imageFile    = formData.get("image") as File | null;
+  const name         = (formData.get("name")?.toString() ?? "").trim();
+  const description  = (formData.get("description")?.toString() ?? "").trim();
+  const supervisor   = (formData.get("supervisor")?.toString() ?? "").trim();
+  const status       = (formData.get("status")?.toString() ?? "pending").trim();
+  const imageEntry   = formData.get("image");
 
   if (!name || !description || !supervisor) {
-    return { error: "Name, description, and supervisor are required" };
+    return { success: false, error: "Name, description, and supervisor are required" };
   }
 
   let imageUrl: string | null = null;
 
-  if (imageFile && imageFile.size > 0) {
+  // Proper file check
+  if (imageEntry instanceof File && imageEntry.size > 0) {
     try {
-      imageUrl = await uploadImage(imageFile);
+      imageUrl = await uploadImage(imageEntry);
     } catch (err) {
       console.error("Image upload error:", err);
-      return { error: "Failed to upload image" };
+      return { success: false, error: "Failed to upload image" };
     }
   }
 
   try {
     if (activityId) {
-      // Update — we don't change addedById
+      // Update
       await prisma.activity.update({
         where: { id: activityId },
         data: {
@@ -92,9 +90,8 @@ export async function saveActivityAction(formData: FormData): Promise<ActionResu
     } else {
       // Create
       if (!imageUrl) {
-        return { error: "Image is required for new activities" };
+        return { success: false, error: "Image is required for new activities" };
       }
-
       await prisma.activity.create({
         data: {
           name,
@@ -111,41 +108,79 @@ export async function saveActivityAction(formData: FormData): Promise<ActionResu
     return { success: true };
   } catch (err) {
     console.error("Activity save failed:", err);
-    return { error: "Could not save activity" };
+    return { success: false, error: "Could not save activity" };
   }
 }
 
 export async function deleteActivityAction(id: string): Promise<ActionResult> {
-  let currentUserId: string;
-
   try {
-    currentUserId = await requireUserId();
+    await requireUserId();
   } catch (err) {
-    return { error: (err as Error).message || "Authentication required" };
+    return { success: false, error: (err as Error).message || "Authentication required" };
   }
 
   try {
-    // Optional strict ownership check (uncomment if desired)
-    /*
-    const activity = await prisma.activity.findUnique({
-      where: { id },
-      select: { addedById: true },
-    });
-
-    if (!activity) {
-      return { error: "Activity not found" };
-    }
-
-    if (activity.addedById !== currentUserId) {
-      return { error: "You can only delete your own activities" };
-    }
-    */
-
     await prisma.activity.delete({ where: { id } });
     revalidatePath("/activities");
     return { success: true };
   } catch (err) {
     console.error("Activity delete failed:", err);
-    return { error: "Could not delete activity" };
+    return { success: false, error: "Could not delete activity" };
   }
+}
+
+// Report Actions (unchanged — already safe)
+export async function saveReportAction(formData: FormData): Promise<ActionResult> {
+  try {
+    await requireUserId();
+  } catch (err) {
+    return { success: false, error: (err as Error).message || "Authentication required" };
+  }
+
+  const activityId = formData.get("activityId")?.toString();
+  const reportText = (formData.get("report")?.toString() ?? "").trim();
+
+  if (!activityId || !reportText) {
+    return { success: false, error: "Activity ID and report text are required" };
+  }
+
+  try {
+    await prisma.report.create({
+      data: { report: reportText, activityId },
+    });
+    revalidatePath("/activities");
+    return { success: true };
+  } catch (err) {
+    console.error("Report save failed:", err);
+    return { success: false, error: "Could not save report" };
+  }
+}
+
+export async function deleteReportAction(reportId: string): Promise<ActionResult> {
+  try {
+    await requireUserId();
+  } catch (err) {
+    return { success: false, error: (err as Error).message || "Authentication required" };
+  }
+
+  try {
+    await prisma.report.delete({ where: { id: reportId } });
+    revalidatePath("/activities");
+    return { success: true };
+  } catch (err) {
+    console.error("Report delete failed:", err);
+    return { success: false, error: "Could not delete report" };
+  }
+}
+
+export async function getReportsForActivity(activityId: string) {
+  return prisma.report.findMany({
+    where: { activityId },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      report: true,
+      createdAt: true,
+    },
+  });
 }

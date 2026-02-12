@@ -9,7 +9,7 @@ export default function Team() {
     { name: "Ruth Nyamu", phone: "0704 876 954", role: "Organizing secretary", location: "Marakwet West" },
   ];
 
-  const leader = { name: "Justine Chemanda", phone: "0704 876 954", role: "Leader", location: "" };
+  const leader = { name: "Justine Kipngetich", phone: "0704 876 954", role: "Leader", location: "" };
 
   return (
     <div className="w-full bg-white p-4 font-sans text-gray-900">

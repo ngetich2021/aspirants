@@ -1,7 +1,20 @@
-import Image from 'next/image'
-import React from 'react'
+'use client'
+
+import Image from 'next/image';
+import React, { useState } from 'react';
 
 export default function Footer() {
+  const whatsappLink = 'https://chat.whatsapp.com/Hv2MpzTAtFqFHoWwWYJjjz';
+  const xLink = 'https://x.com/Aspirants_EMC';
+
+  const [copied, setCopied] = useState(false);
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(whatsappLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <footer className="w-full bg-[#f4fbf4] border-t border-gray-200 p-0 m-0 font-sans">
       <div className="flex flex-row justify-between items-start py-6 px-2 md:px-10 gap-2">
@@ -37,28 +50,36 @@ export default function Footer() {
         <div className="flex flex-col flex-1">
           <h4 className="text-green-500 font-bold text-[3vw] md:text-xl mb-1 md:mb-3 whitespace-nowrap">Contact us</h4>
           <div className="flex flex-col space-y-0.5 md:space-y-1 text-black font-bold text-[2.2vw] md:text-lg">
-            <span>X</span>
+            <a href={xLink} target="_blank" rel="noopener noreferrer" className="hover:text-red-600 transition-colors">X</a>
             <span>FB</span>
             <span>Tiktok</span>
-            <span className="whitespace-nowrap">0706 876 954</span>
-            <span className="whitespace-nowrap">0735 786 543</span>
           </div>
         </div>
 
         {/* Whatsapp Column */}
         <div className="flex flex-col flex-1">
           <h4 className="text-blue-700 font-bold text-[2.8vw] md:text-xl mb-1 md:mb-3 whitespace-nowrap">
-            whatsapp group link
+            WhatsApp Group Link
           </h4>
-          <a 
-            href="https://whatsapp.com" 
-            className="text-gray-600 text-[1.8vw] md:text-sm break-all hover:underline"
-          >
-            https://chat.whatsapp.com/Hv2MpzTAtFqFHoWwWYJjjz
-          </a>
+          <div className="flex flex-col items-start">
+            <a 
+              href={whatsappLink} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-gray-600 text-[1.8vw] md:text-sm break-all hover:underline mb-1"
+            >
+              {whatsappLink}
+            </a>
+            <button 
+              onClick={copyToClipboard}
+              className="bg-blue-500 text-white px-2 py-1 rounded text-[1.6vw] md:text-xs hover:bg-blue-600 transition-colors"
+            >
+              {copied ? 'Copied!' : 'Copy Link'}
+            </button>
+          </div>
         </div>
 
       </div>
     </footer>
-  )
+  );
 }
