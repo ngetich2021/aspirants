@@ -26,6 +26,12 @@ const nextConfig: NextConfig = {
         hostname: "**.res.cloudinary.com",
         pathname: "/**",
       },
+      {
+        protocol: 'https',
+        hostname: 'img.icons8.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
 };

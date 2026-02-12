@@ -3,13 +3,13 @@ import React from 'react'
 
 export default function Team() {
   const teamMembers = [
-    { name: "Hosea Yano", phone: "0704 876 954", role: "Chairman", location: "Marakwet East" },
-    { name: "Lonah Yano", phone: "0704 876 954", role: "secretary", location: "Keiyo South" },
-    { name: "Luka Ruto", phone: "0704 876 954", role: "treasurer", location: "Keiyo North" },
-    { name: "Ruth Nyamu", phone: "0704 876 954", role: "Organizing secretary", location: "Marakwet West" },
+    { name: "John Doe", phone: "0712 345 678", role: "Chairman", location: "Marakwet East" },
+    { name: "John Doe", phone: "0712 345 678", role: "secretary", location: "Keiyo South" },
+    { name: "John Doe", phone: "0712 345 678", role: "treasurer", location: "Keiyo North" },
+    { name: "John Doe", phone: "0712 345 678", role: "Organizing secretary", location: "Marakwet West" },
   ];
 
-  const leader = { name: "Justine Kipngetich", phone: "0704 876 954", role: "Leader", location: "" };
+  const leader = { name: "John Doe", phone: "0712 345 678", role: "Leader", location: "" };
 
   return (
     <div className="w-full bg-white p-4 font-sans text-gray-900">

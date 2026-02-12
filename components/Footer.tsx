@@ -1,85 +1,107 @@
 'use client'
 
-import Image from 'next/image';
-import React, { useState } from 'react';
+import Image from 'next/image'
+import { useState } from 'react'
+import { Copy, Check } from 'lucide-react' // optional: install lucide-react for better icons
 
 export default function Footer() {
-  const whatsappLink = 'https://chat.whatsapp.com/Hv2MpzTAtFqFHoWwWYJjjz';
-  const xLink = 'https://x.com/Aspirants_EMC';
+  const whatsappLink = 'https://chat.whatsapp.com/Hv2MpzTAtFqFHoWwWYJjjz'
+  const xLink = 'https://x.com/Aspirants_EMC'
+  const tiktokLink = 'https://www.tiktok.com/@aspirant_forum'
+  const fbLink = 'https://www.facebook.com/groups/1253115390075496'
 
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState(false)
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(whatsappLink);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  const copyLink = () => {
+    navigator.clipboard.writeText(whatsappLink)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1800)
+  }
 
   return (
-    <footer className="w-full bg-[#f4fbf4] border-t border-gray-200 p-0 m-0 font-sans">
-      <div className="flex flex-row justify-between items-start py-6 px-2 md:px-10 gap-2">
-        
-        {/* Logo & Slogan Column */}
-        <div className="flex flex-col items-center flex-1">
-          <div className="relative w-10 h-10 md:w-20 md:h-20 bg-white rounded-full overflow-hidden mb-2 border border-gray-100 flex items-center justify-center">
-            {/* Replace with your emc-logo.png */}
-            <Image 
-              src={'/emc_aspirants_logo.png'} 
-              alt="Logo" 
-              className="w-full h-full object-contain p-1"
-              fill
-            />
+    <footer className="w-full bg-[#f8fff8] border-t border-gray-200">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+
+          {/* Logo & Tagline */}
+          <div className="flex flex-col items-center md:items-start">
+            <div className="relative w-16 h-16 rounded-full overflow-hidden bg-white border border-gray-200 mb-3">
+              <Image
+                src="/emc_aspirants_logo.png"
+                alt="EMC Aspirants Logo"
+                fill
+                className="object-contain p-1.5"
+                priority
+              />
+            </div>
+            <p className="text-gray-600 font-medium text-center md:text-left">
+              Home for you
+            </p>
           </div>
-          <p className="text-gray-500 font-bold text-[2.5vw] md:text-lg whitespace-nowrap">
-            Home for you
-          </p>
-        </div>
 
-        {/* Links Column */}
-        <div className="flex flex-col flex-1">
-          <h4 className="text-red-600 font-bold text-[3vw] md:text-xl mb-1 md:mb-3">Links</h4>
-          <nav className="flex flex-col space-y-0.5 md:space-y-1 text-black font-bold text-[2.2vw] md:text-lg">
-            <a href="#" className="hover:text-red-600 transition-colors">Join</a>
-            <a href="#" className="hover:text-red-600 transition-colors">Events</a>
-            <a href="#" className="hover:text-red-600 transition-colors">Talk to us</a>
-            <a href="#" className="hover:text-red-600 transition-colors">Support us</a>
-          </nav>
-        </div>
-
-        {/* Contact Us Column */}
-        <div className="flex flex-col flex-1">
-          <h4 className="text-green-500 font-bold text-[3vw] md:text-xl mb-1 md:mb-3 whitespace-nowrap">Contact us</h4>
-          <div className="flex flex-col space-y-0.5 md:space-y-1 text-black font-bold text-[2.2vw] md:text-lg">
-            <a href={xLink} target="_blank" rel="noopener noreferrer" className="hover:text-red-600 transition-colors">X</a>
-            <span>FB</span>
-            <span>Tiktok</span>
+          {/* Quick Links */}
+          <div>
+            <h4 className="text-red-600 font-semibold mb-4">Links</h4>
+            <ul className="space-y-2 text-gray-700">
+              <li><a href="#" className="hover:text-red-600 transition">Join</a></li>
+              <li><a href="#" className="hover:text-red-600 transition">Events</a></li>
+              <li><a href="#" className="hover:text-red-600 transition">Talk to us</a></li>
+              <li><a href="#" className="hover:text-red-600 transition">Support us</a></li>
+            </ul>
           </div>
-        </div>
 
-        {/* Whatsapp Column */}
-        <div className="flex flex-col flex-1">
-          <h4 className="text-blue-700 font-bold text-[2.8vw] md:text-xl mb-1 md:mb-3 whitespace-nowrap">
-            WhatsApp Group Link
-          </h4>
-          <div className="flex flex-col items-start">
-            <a 
-              href={whatsappLink} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-gray-600 text-[1.8vw] md:text-sm break-all hover:underline mb-1"
-            >
+          {/* Socials */}
+          <div>
+            <h4 className="text-green-600 font-semibold mb-4">Connect</h4>
+            <div className="flex gap-4">
+              <a href={xLink} target="_blank" rel="noopener noreferrer" className="hover:opacity-75 transition">
+                <Image src="https://img.icons8.com/ios-filled/50/000000/x.png" alt="X" width={28} height={28} />
+              </a>
+              <a href={fbLink} target="_blank" rel="noopener noreferrer" className="hover:opacity-75 transition">
+                <Image src="https://img.icons8.com/fluency/48/000000/facebook-new.png" alt="Facebook" width={28} height={28} />
+              </a>
+              <a href={tiktokLink} target="_blank" rel="noopener noreferrer" className="hover:opacity-75 transition">
+                <Image src="https://img.icons8.com/color/48/000000/tiktok--v1.png" alt="TikTok" width={28} height={28} />
+              </a>
+            </div>
+          </div>
+
+          {/* WhatsApp Group */}
+          <div>
+            <h4 className="text-blue-600 font-semibold mb-4">WhatsApp Group</h4>
+            <div className="flex items-center gap-2 mb-3">
+              <Image
+                src="https://img.icons8.com/color/48/000000/whatsapp--v1.png"
+                alt="WhatsApp"
+                width={28}
+                height={28}
+              />
+              <button
+                onClick={copyLink}
+                className="flex items-center gap-1.5 text-sm text-gray-700 hover:text-blue-600 transition"
+              >
+                {copied ? (
+                  <>
+                    <Check size={16} className="text-green-600" /> Copied!
+                  </>
+                ) : (
+                  <>
+                    <Copy size={16} /> Copy link
+                  </>
+                )}
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 break-all">
               {whatsappLink}
-            </a>
-            <button 
-              onClick={copyToClipboard}
-              className="bg-blue-500 text-white px-2 py-1 rounded text-[1.6vw] md:text-xs hover:bg-blue-600 transition-colors"
-            >
-              {copied ? 'Copied!' : 'Copy Link'}
-            </button>
+            </p>
           </div>
+
         </div>
 
+        <div className="mt-8 pt-6 border-t border-gray-200 text-center text-sm text-gray-500">
+          © {new Date().getFullYear()} EMC Aspirants • All rights reserved
+        </div>
       </div>
     </footer>
-  );
+  )
 }
