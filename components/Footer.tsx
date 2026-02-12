@@ -73,7 +73,7 @@ export default function Footer() {
               <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="hover:opacity-75 transition">
                 <Image src="https://img.icons8.com/color/48/000000/whatsapp--v1.png" alt="WhatsApp" width={28} height={28} />
               </a>
-              <button
+              {/* <button
                 onClick={copyLink}
                 className="flex items-center gap-1.5 text-sm text-gray-700 hover:text-blue-600 transition"
               >
@@ -86,11 +86,11 @@ export default function Footer() {
                     <Copy size={16} /> Copy link
                   </>
                 )}
-              </button>
+              </button> */}
             </div>
-            <p className="text-xs text-gray-500 break-all">
+            {/* <p className="text-xs text-gray-500 break-all">
               {whatsappLink}
-            </p>
+            </p> */}
           </div>
 
         </div>
