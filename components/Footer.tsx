@@ -70,12 +70,9 @@ export default function Footer() {
           <div>
             <h4 className="text-blue-600 font-semibold mb-4">WhatsApp Group</h4>
             <div className="flex items-center gap-2 mb-3">
-              <Image
-                src="https://img.icons8.com/color/48/000000/whatsapp--v1.png"
-                alt="WhatsApp"
-                width={28}
-                height={28}
-              />
+              <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="hover:opacity-75 transition">
+                <Image src="https://img.icons8.com/color/48/000000/whatsapp--v1.png" alt="WhatsApp" width={28} height={28} />
+              </a>
               <button
                 onClick={copyLink}
                 className="flex items-center gap-1.5 text-sm text-gray-700 hover:text-blue-600 transition"
