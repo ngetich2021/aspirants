@@ -4,8 +4,8 @@ import { useState } from "react";
 import { saveOfficialAction } from "./actionsTeam";
 import Image from "next/image";
 
-type User = { id: string; email: string };
-type Station = { id: string; name: string };
+type User     = { id: string; email: string };
+type Station  = { id: string; name: string };
 type Designation = { id: string; name: string };
 
 interface Props {
@@ -37,37 +37,45 @@ export default function AddOfficialForm({
 
   const [selectedEmail, setSelectedEmail] = useState(initialOfficial?.user.email || "");
   const [form, setForm] = useState({
-    fullName: initialOfficial?.fullName || "",
+    fullName:     initialOfficial?.fullName || "",
     designationId: initialOfficial?.designationId || "",
-    tel: initialOfficial?.tel || "",
-    tel2: initialOfficial?.tel2 || "",
-    stationId: initialOfficial?.stationId || "",
+    tel:          initialOfficial?.tel || "",
+    tel2:         initialOfficial?.tel2 || "",
+    stationId:    initialOfficial?.stationId || "",
   });
 
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const getUserId = () =>
-    users.find((u) => u.email === selectedEmail)?.id || initialOfficial?.userId || "";
+  const [error,     setError]     = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
 
-    const data = new FormData(e.currentTarget);
-    data.set("userId", getUserId());
+    const formData = new FormData(e.currentTarget);
+
+    // ── Critical fix: get userId reliably ────────────────────────────────
+    const selectedUser = users.find(u => u.email === selectedEmail);
+    if (!selectedUser) {
+      setError("Please select a valid user");
+      setSubmitting(false);
+      return;
+    }
+
+    formData.set("userId", selectedUser.id);
+    // ─────────────────────────────────────────────────────────────────────
 
     try {
-      const res = await saveOfficialAction(data);
+      const res = await saveOfficialAction(formData);
       if (res.success) {
-        alert(isEdit ? "Official updated" : "Official added");
+        alert(isEdit ? "Official updated successfully" : "Official added successfully");
         onClose();
       } else {
-        setError(res.error || "Operation failed");
+        setError(res.error || "Save failed – check server logs");
       }
-    } catch {
-      setError("Network or server error");
+    } catch (err) {
+      console.error("Form submit error:", err);
+      setError("Network or unexpected error");
     } finally {
       setSubmitting(false);
     }
@@ -86,10 +94,14 @@ export default function AddOfficialForm({
         {isEdit ? "Edit Official" : "Add Official"}
       </h2>
 
-      {error && <div className="text-red-600 mb-6 p-3 bg-red-50 rounded">{error}</div>}
+      {error && (
+        <div className="text-red-600 mb-6 p-3 bg-red-50 rounded border border-red-200">
+          {error}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <input type="hidden" name="userId" value={getUserId()} />
+        {/* No hidden userId input anymore – we set it in JS */}
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -99,7 +111,7 @@ export default function AddOfficialForm({
             value={selectedEmail}
             onChange={(e) => setSelectedEmail(e.target.value)}
             required
-            className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#6E1AF3]"
+            className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#6E1AF3] focus:border-[#6E1AF3] outline-none"
           >
             <option value="">Select user</option>
             {users.map((u) => (
@@ -158,7 +170,9 @@ export default function AddOfficialForm({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Secondary Phone</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Secondary Phone
+          </label>
           <input
             name="tel2"
             type="tel"
@@ -173,7 +187,7 @@ export default function AddOfficialForm({
             Polling Station <span className="text-red-500">*</span>
           </label>
           <select
-            name="station"  // must match formData.get("station") in action
+            name="station"
             value={form.stationId}
             onChange={(e) => setForm({ ...form, stationId: e.target.value })}
             required
@@ -201,15 +215,15 @@ export default function AddOfficialForm({
           />
           {isEdit && initialOfficial?.image && (
             <div className="mt-3">
-              <p className="text-sm text-gray-500">Current:</p>
+              <p className="text-sm text-gray-500">Current photo:</p>
               <Image
                 src={initialOfficial.image}
-                alt="Current photo"
+                alt="Current"
                 width={80}
                 height={80}
                 className="mt-2 h-20 w-20 object-cover rounded-md border shadow-sm"
               />
-              <p className="text-xs text-gray-500 mt-1">Upload new to replace</p>
+              <p className="text-xs text-gray-500 mt-1">Upload new file to replace</p>
             </div>
           )}
         </div>
@@ -219,6 +233,7 @@ export default function AddOfficialForm({
             type="button"
             onClick={onClose}
             className="flex-1 py-3 border rounded-lg hover:bg-gray-50"
+            disabled={submitting}
           >
             Cancel
           </button>
