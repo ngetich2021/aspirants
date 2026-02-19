@@ -1,4 +1,3 @@
-// app/dashboard/MessagesClient.tsx
 'use client';
 
 import Link from 'next/link';
@@ -34,6 +33,9 @@ export default function MessagesClient({
   const [isPending, startTransition] = useTransition();
   const [openMessageId, setOpenMessageId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Track IDs of messages that have been opened/read
+  const [readMessages, setReadMessages] = useState<Set<string>>(new Set());
 
   const updateUrl = (newParams: Record<string, string>) => {
     const params = new URLSearchParams(searchParams);
@@ -46,6 +48,16 @@ export default function MessagesClient({
     });
   };
 
+  const handleReadClick = (id: string) => {
+    // Toggle the accordion
+    setOpenMessageId(openMessageId === id ? null : id);
+    
+    // Add to read set if not already there
+    if (!readMessages.has(id)) {
+      setReadMessages((prev) => new Set(prev).add(id));
+    }
+  };
+
   const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     updateUrl({ size: e.target.value, page: '1' });
   };
@@ -56,12 +68,9 @@ export default function MessagesClient({
     updateUrl({ page: next.toString() });
   };
 
-  // Client-side search filter
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return initialMessages;
-
     const q = searchQuery.toLowerCase().trim();
-
     return initialMessages.filter(m =>
       m.name.toLowerCase().includes(q) ||
       m.tel.includes(q) ||
@@ -78,14 +87,13 @@ export default function MessagesClient({
       <div className="max-w-6xl mx-auto px-3 sm:px-6 py-6">
         <div className="bg-white border border-gray-300 rounded shadow-sm overflow-hidden">
 
-          {/* Top controls: Total + search + page size */}
+          {/* Top controls */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 border-b bg-gray-50">
             <div className="bg-red-600 text-white px-4 py-2 rounded font-medium text-lg inline-block">
               Total messages {total.toLocaleString()}
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-              {/* Search */}
               <div className="relative flex-1 min-w-[240px]">
                 <input
                   type="text"
@@ -99,7 +107,6 @@ export default function MessagesClient({
                 </svg>
               </div>
 
-              {/* Page size dropdown */}
               <div className="flex items-center gap-2 whitespace-nowrap">
                 <span className="text-sm text-gray-700">Show:</span>
                 <select
@@ -116,7 +123,6 @@ export default function MessagesClient({
             </div>
           </div>
 
-          {/* Table */}
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="bg-gray-200 text-gray-700 uppercase text-xs">
@@ -139,8 +145,10 @@ export default function MessagesClient({
                 ) : (
                   filtered.map((msg, idx) => {
                     const serial = searchQuery ? idx + 1 : showingFrom + idx;
+                    const hasBeenRead = readMessages.has(msg.id);
+
                     return (
-                      <tr key={msg.id} className="border-b hover:bg-gray-50">
+                      <tr key={msg.id} className="border-b hover:bg-gray-50 align-top">
                         <td className="px-4 py-3">{serial}</td>
                         <td className="px-4 py-3">{msg.name}</td>
                         <td className="px-4 py-3">{msg.pollingStation}</td>
@@ -148,14 +156,16 @@ export default function MessagesClient({
                         <td className="px-4 py-3">{msg.createdAt}</td>
                         <td className="px-4 py-3">
                           <button
-                            onClick={() => setOpenMessageId(openMessageId === msg.id ? null : msg.id)}
-                            className="text-green-600 hover:text-green-800 font-medium"
+                            onClick={() => handleReadClick(msg.id)}
+                            className={`font-medium transition-colors ${
+                              hasBeenRead ? 'text-black' : 'text-green-600 hover:text-green-800'
+                            }`}
                           >
                             read
                           </button>
 
                           {openMessageId === msg.id && (
-                            <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded text-gray-800 text-sm">
+                            <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded text-gray-800 text-sm max-w-xs sm:max-w-md">
                               <div className="font-medium mb-1">From: {msg.name} • {msg.tel}</div>
                               <p className="whitespace-pre-wrap">{msg.message}</p>
                             </div>
@@ -169,7 +179,6 @@ export default function MessagesClient({
             </table>
           </div>
 
-          {/* Bottom pagination – hidden when searching */}
           {!searchQuery && (
             <div className="flex justify-between items-center px-4 py-3 bg-gray-50 border-t text-sm">
               <div className="text-gray-600">

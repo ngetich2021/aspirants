@@ -1,26 +1,141 @@
 @import "tailwindcss";
 
+/* ────────────────────────────────────────────────
+   1. Design System Tokens
+───────────────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  --surface-app:    #f3f4f6;     /* Gray-100 – main wrapper */
+  --surface-raised: #ffffff;     /* White – cards/tables/modals */
+  --surface-subtle: #f9fafb;     /* Gray-50 – headers/inputs */
+  --surface-hover:  #f1f5f9;     /* subtle hover */
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --text-primary:   #111827;     /* Gray-900 */
+  --text-secondary: #4b5563;     /* Gray-600 */
+  --text-muted:     #6b7280;     /* Gray-500 – better dark mode contrast than #64748b */
+
+  --border:         #e5e7eb;     /* Gray-200 */
+
+  --accent:         #9333ea;     /* Purple-600 */
+  --accent-muted:   #c084fc;     /* Purple-400 – rings/soft accents */
+
+  color-scheme: light dark;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --surface-app:    #020617;     /* deep slate – OLED friendly */
+    --surface-raised: #0f172a;     /* Slate-900 */
+    --surface-subtle: #1e293b;     /* Slate-800 */
+    --surface-hover:  #253549;     /* muted hover */
+
+    --text-primary:   #f1f5f9;     /* Slate-100 */
+    --text-secondary: #cbd5e1;     /* Slate-300 – readable */
+    --text-muted:     #94a3b8;     /* Slate-400 – softer than 500 */
+
+    --border:         #334155;     /* Slate-700 */
+
+    --accent:         #c084fc;     /* Purple-400 */
+    --accent-muted:   #e9d5ff;     /* Purple-200 */
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Manual toggle support (identical to media query) */
+.dark {
+  --surface-app:    #020617;
+  --surface-raised: #0f172a;
+  --surface-subtle: #1e293b;
+  --surface-hover:  #253549;
+  --text-primary:   #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted:     #94a3b8;
+  --border:         #334155;
+  --accent:         #c084fc;
+  --accent-muted:   #e9d5ff;
+}
+
+/* ────────────────────────────────────────────────
+   2. Auto-Adaptation Layer (targeted & minimal !important)
+───────────────────────────────────────────────── */
+@layer base {
+  body {
+    background-color: var(--surface-app);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Only hijack classes you actually use in your components */
+  .bg-white,
+  .bg-gray-50       { background-color: var(--surface-raised) !important; }
+
+  .bg-gray-100      { background-color: var(--surface-app)    !important; }
+
+  .text-gray-900,
+  .text-black       { color: var(--text-primary)   !important; }
+
+  .text-gray-700,
+  .text-gray-600,
+  .text-gray-500    { color: var(--text-secondary) !important; }
+
+  .text-purple-600  { color: var(--accent)         !important; }
+
+  .border-gray-200,
+  .border-gray-300  { border-color: var(--border)  !important; }
+
+  /* Form controls – common in modals/forms */
+  input, select, textarea {
+    background-color: var(--surface-raised) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border) !important;
+  }
+
+  /* Smooth transitions – feels premium */
+  *, *::before, *::after {
+    transition: background-color 0.2s ease,
+                border-color 0.2s ease,
+                color 0.15s ease;
+  }
+
+  ::selection {
+    background-color: var(--accent);
+    color: white;
+  }
+}
+
+/* ────────────────────────────────────────────────
+   3. Accessibility & Print
+───────────────────────────────────────────────── */
+@media (prefers-contrast: more) {
+  :root {
+    --text-primary: #000000;
+    --surface-raised: #ffffff;
+  }
+  .dark {
+    --text-primary: #ffffff;
+    --surface-raised: #000000;
+  }
+}
+
+@media print {
+  :root {
+    --surface-app:    #ffffff !important;
+    --surface-raised: #ffffff !important;
+    --text-primary:   #000000 !important;
+    --border:         #dddddd !important;
+  }
+}
+
+/* Optional: expose variables so new code can use clean names */
+@theme inline {
+  --color-surface-app:    var(--surface-app);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-subtle: var(--surface-subtle);
+  --color-surface-hover:  var(--surface-hover);
+  --color-text-primary:   var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted:     var(--text-muted);
+  --color-border:         var(--border);
+  --color-accent:         var(--accent);
+  --color-accent-muted:   var(--accent-muted);
 }

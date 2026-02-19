@@ -13,6 +13,7 @@ interface PollingStation {
   county: string;
   subCounty: string;
   votes: number;
+  aspirantsCount: number;
 }
 
 interface Props {
@@ -20,20 +21,39 @@ interface Props {
   initialStations: PollingStation[];
 }
 
-// Type returned by deletePollingStationAction
-type DeleteResult = { success: true } | { error: string };
+interface DeleteSuccess {
+  success: true;
+}
 
-// Type returned by uploadPollingStationsAction
-interface UploadResult {
-  success: boolean;
+interface DeleteError {
+  success: false;
+  error: string;
+}
+
+type DeleteResult = DeleteSuccess | DeleteError;
+
+interface UploadSuccess {
+  success: true;
   message: string;
   created: number;
   updated: number;
   errors?: string[];
 }
 
+interface UploadFailure {
+  success: false;
+  message: string;
+  created: number;
+  updated: number;
+  errors?: string[];
+}
+
+type UploadResult = UploadSuccess | UploadFailure;
+
 const PAGE_SIZES = [20, 50, 100, 200, 500, 1000, 5000] as const;
 type PageSize = (typeof PAGE_SIZES)[number];
+
+type FilterOption = "all" | "red" | "orange" | "green";
 
 export default function PollingStationsClient({
   totalStations,
@@ -41,31 +61,29 @@ export default function PollingStationsClient({
 }: Props) {
   const router = useRouter();
 
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState<boolean>(false);
   const [modalMode, setModalMode] = useState<"add" | "edit" | "view">("add");
-  const [selectedStation, setSelectedStation] = useState<PollingStation | undefined>();
+  const [selectedStation, setSelectedStation] = useState<PollingStation | undefined>(undefined);
 
-  const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState<boolean>(false);
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const [uploading, setUploading] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState<string>("");
+  const [filter, setFilter] = useState<FilterOption>("all");
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
-  const [dropdownTop, setDropdownTop] = useState(0);
-  const [dropdownLeft, setDropdownLeft] = useState(0);
+  const [dropdownTop, setDropdownTop] = useState<number>(0);
+  const [dropdownLeft, setDropdownLeft] = useState<number>(0);
 
-  // Pagination states
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<PageSize>(100);
 
-  // Reset page when search changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [search]);
+  }, [search, filter]);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     if (!openDropdownId) return;
     const close = () => setOpenDropdownId(null);
@@ -73,12 +91,34 @@ export default function PollingStationsClient({
     return () => document.removeEventListener("click", close);
   }, [openDropdownId]);
 
-  // Type guards
-  const isDeleteSuccess = (result: DeleteResult): result is { success: true } =>
-    "success" in result && result.success === true;
+  // Summary counts for status cards
+  const zeroCount  = initialStations.filter(s => s.aspirantsCount === 0).length;
+  const lowCount   = initialStations.filter(s => s.aspirantsCount >= 1 && s.aspirantsCount <= 19).length;
+  const goodCount  = initialStations.filter(s => s.aspirantsCount >= 20).length;
 
-  const isUploadSuccess = (result: UploadResult): result is UploadResult & { success: true } =>
-    result.success === true;
+  // Filtered & searched stations
+  let visibleStations = initialStations;
+
+  if (filter !== "all") {
+    if (filter === "red")    visibleStations = visibleStations.filter(s => s.aspirantsCount === 0);
+    if (filter === "orange") visibleStations = visibleStations.filter(s => s.aspirantsCount >= 1 && s.aspirantsCount <= 19);
+    if (filter === "green")  visibleStations = visibleStations.filter(s => s.aspirantsCount >= 20);
+  }
+
+  if (search.trim()) {
+    const term = search.toLowerCase();
+    visibleStations = visibleStations.filter(st =>
+      `${st.name} ${st.ward}`.toLowerCase().includes(term)
+    );
+  }
+
+  const totalFiltered = visibleStations.length;
+  const totalPages = Math.ceil(totalFiltered / pageSize);
+  const safePage = Math.max(1, Math.min(currentPage, totalPages || 1));
+
+  const startIndex = (safePage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const currentPageStations = visibleStations.slice(startIndex, endIndex);
 
   const toggleDropdown = (id: string, e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
@@ -89,16 +129,14 @@ export default function PollingStationsClient({
 
     const rect = e.currentTarget.getBoundingClientRect();
     const gap = 8;
-    const dropdownWidth = 160;
+    const width = 160;
 
     let top = rect.bottom + gap;
-    let left = rect.right - dropdownWidth;
+    let left = rect.right - width;
 
-    if (top + 100 > window.innerHeight) top = rect.top - 100 - gap;
+    if (top + 120 > window.innerHeight) top = rect.top - 120 - gap;
     if (left < gap) left = gap;
-    if (left + dropdownWidth > window.innerWidth - gap) {
-      left = window.innerWidth - dropdownWidth - gap;
-    }
+    if (left + width > window.innerWidth - gap) left = window.innerWidth - width - gap;
 
     setDropdownTop(top);
     setDropdownLeft(left);
@@ -122,23 +160,21 @@ export default function PollingStationsClient({
     router.refresh();
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string): Promise<void> => {
     if (!confirm("Delete this polling station?")) return;
-
     try {
       const res = await deletePollingStationAction(id);
-      if (isDeleteSuccess(res)) {
+      if ("success" in res && res.success) {
         router.refresh();
-      } else {
+      } else if ("error" in res) {
         alert(res.error || "Delete failed");
       }
-    } catch (err) {
-      console.error("Delete error:", err);
+    } catch {
       alert("Error deleting station");
     }
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -151,13 +187,11 @@ export default function PollingStationsClient({
     try {
       const result = await uploadPollingStationsAction(formData);
       setUploadResult(result);
-
-      if (isUploadSuccess(result)) {
+      if (result.success) {
         router.refresh();
         setTimeout(() => setUploadOpen(false), 2200);
       }
-    } catch (err) {
-      console.error("Upload error:", err);
+    } catch {
       setUploadResult({
         success: false,
         message: "Upload failed unexpectedly",
@@ -170,166 +204,213 @@ export default function PollingStationsClient({
     }
   };
 
-  // Filtering & Pagination logic
-  const filteredStations = initialStations.filter((st) =>
-    `${st.name} ${st.ward}`.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const totalFiltered = filteredStations.length;
-  const totalPages = Math.ceil(totalFiltered / pageSize);
-
-  const safePage = Math.max(1, Math.min(currentPage, totalPages || 1));
-
-  const startIndex = (safePage - 1) * pageSize;
-  const endIndex = startIndex + pageSize;
-  const currentPageStations = filteredStations.slice(startIndex, endIndex);
+  const getStatusColor = (count: number): string => {
+    if (count === 0) return "text-red-700 font-semibold";
+    if (count <= 19) return "text-orange-600 font-medium";
+    return "text-green-700 font-semibold";
+  };
 
   return (
     <main className="min-h-screen bg-gray-100 p-4 sm:p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 flex-wrap">
-          <div className="bg-[#C0A7A7] p-4 rounded-md w-full sm:w-auto">
-            <h1 className="text-xl sm:text-2xl font-bold">Polling Stations</h1>
-            <p className="text-2xl sm:text-3xl text-purple-600 mt-2">
-              {totalStations} station{totalStations !== 1 ? "s" : ""}
+        <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 flex-wrap">
+          <div className="bg-[#C0A7A7] p-5 rounded-lg w-full sm:w-auto min-w-[240px]">
+            <h1 className="text-2xl font-bold">Polling Stations</h1>
+            <p className="text-3xl text-purple-700 mt-3 font-semibold">
+              {totalStations} {totalStations === 1 ? "station" : "stations"}
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row gap-4">
             <button
               onClick={() => openModal("add")}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium"
+              className="bg-purple-600 hover:bg-purple-700 text-white px-7 py-3 rounded-lg font-medium shadow-sm"
             >
               + Add Single Station
             </button>
             <button
               onClick={() => setUploadOpen(true)}
-              className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium flex items-center justify-center gap-2"
+              className="bg-green-600 hover:bg-green-700 text-white px-7 py-3 rounded-lg font-medium flex items-center gap-2 shadow-sm"
             >
               <Upload size={18} /> Upload Excel/CSV
             </button>
           </div>
         </div>
 
-        {/* Search + Rows per page */}
-        <div className="mb-6 flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
+        {/* Status cards – always horizontal, smaller size */}
+        <div className="mb-8 flex flex-row flex-wrap justify-center gap-4 sm:gap-6">
+          <div className="bg-white p-4 rounded-xl shadow border border-red-100 flex flex-col items-center min-w-[110px]">
+            <div className="w-14 h-14 rounded-full bg-red-500 flex items-center justify-center text-white text-2xl font-bold mb-2">
+              {zeroCount}
+            </div>
+            <p className="text-gray-700 font-medium text-sm">0 Voters</p>
+          </div>
+
+          <div className="bg-white p-4 rounded-xl shadow border border-orange-100 flex flex-col items-center min-w-[110px]">
+            <div className="w-14 h-14 rounded-full bg-orange-500 flex items-center justify-center text-white text-2xl font-bold mb-2">
+              {lowCount}
+            </div>
+            <p className="text-gray-700 font-medium text-sm">1–19 Voters</p>
+          </div>
+
+          <div className="bg-white p-4 rounded-xl shadow border border-green-100 flex flex-col items-center min-w-[110px]">
+            <div className="w-14 h-14 rounded-full bg-green-500 flex items-center justify-center text-white text-2xl font-bold mb-2">
+              {goodCount}
+            </div>
+            <p className="text-gray-700 font-medium text-sm">20+ Voters</p>
+          </div>
+        </div>
+
+        {/* Search + rows + filter */}
+        <div className="mb-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center flex-wrap">
           <input
             type="text"
             placeholder="Search by name or ward..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="flex-1 min-w-[220px] px-5 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
           />
 
-          <div className="flex items-center gap-3 whitespace-nowrap">
-            <label htmlFor="pageSize" className="text-sm font-medium text-gray-700">
-              Rows per page:
-            </label>
-            <select
-              id="pageSize"
-              value={pageSize}
-              onChange={(e) => {
-                setPageSize(Number(e.target.value) as PageSize);
-                setCurrentPage(1);
-              }}
-              className="border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-            >
-              {PAGE_SIZES.map((size) => (
-                <option key={size} value={size}>
-                  {size}
-                </option>
-              ))}
-            </select>
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-start sm:items-center">
+            <div className="flex items-center gap-3 whitespace-nowrap">
+              <label className="text-sm font-medium text-gray-700">Rows per page:</label>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  const value = Number(e.target.value);
+                  if (PAGE_SIZES.includes(value as PageSize)) {
+                    setPageSize(value as PageSize);
+                    setCurrentPage(1);
+                  }
+                }}
+                className="border border-gray-300 rounded px-4 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-purple-400"
+              >
+                {PAGE_SIZES.map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-3 whitespace-nowrap">
+              <label className="text-sm font-medium text-gray-700">Show:</label>
+              <select
+                value={filter}
+                onChange={(e) => setFilter(e.target.value as FilterOption)}
+                className="border border-gray-300 rounded px-4 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-purple-400"
+              >
+                <option value="all">All</option>
+                <option value="red">Red (0)</option>
+                <option value="orange">Orange (1–19)</option>
+                <option value="green">Green (20+)</option>
+              </select>
+            </div>
           </div>
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-lg shadow overflow-x-auto">
-          <table className="w-full min-w-[800px]">
-            <thead className="bg-gray-50 text-xs uppercase">
+        <div className="bg-white rounded-xl shadow overflow-x-auto">
+          <table className="w-full min-w-[1000px]">
+            <thead className="bg-gray-50 text-xs uppercase tracking-wider text-gray-600">
               <tr>
-                <th className="px-4 sm:px-6 py-3 text-left">S/NO</th>
-                <th className="px-4 sm:px-6 py-3 text-left">Name</th>
-                <th className="px-4 sm:px-6 py-3 text-left">Ward</th>
-                <th className="px-4 sm:px-6 py-3 text-left">Votes</th>
-                <th className="px-4 sm:px-6 py-3 text-center">Actions</th>
+                <th className="px-6 py-4 text-left">S/NO</th>
+                <th className="px-6 py-4 text-left">Name</th>
+                <th className="px-6 py-4 text-left">Ward</th>
+                <th className="px-6 py-4 text-left">Votes</th>
+                <th className="px-6 py-4 text-center">Target (50%)</th>
+                <th className="px-6 py-4 text-center">Voters</th>
+                <th className="px-6 py-4 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {currentPageStations.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center text-gray-500">
-                    {search
-                      ? "No matching polling stations found"
-                      : "No polling stations found"}
+                  <td colSpan={7} className="py-16 text-center text-gray-500 italic">
+                    {search || filter !== "all"
+                      ? "No matching stations found"
+                      : "No polling stations yet"}
                   </td>
                 </tr>
               ) : (
-                currentPageStations.map((station, index) => (
-                  <tr
-                    key={station.id}
-                    className="hover:bg-gray-50 cursor-pointer"
-                    onClick={() => openModal("view", station)}
-                  >
-                    <td className="px-4 sm:px-6 py-4 text-sm">
-                      {(safePage - 1) * pageSize + index + 1}
-                    </td>
-                    <td className="px-4 sm:px-6 py-4 font-medium text-sm">
-                      {station.name}
-                    </td>
-                    <td className="px-4 sm:px-6 py-4 text-sm">{station.ward}</td>
-                    <td className="px-4 sm:px-6 py-4 text-sm font-medium">
-                      {station.votes.toLocaleString()}
-                    </td>
-                    <td
-                      className="px-4 sm:px-6 py-4 text-center"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button
-                        onClick={(e) => toggleDropdown(station.id, e)}
-                        className="p-2 hover:bg-gray-200 rounded-full"
-                      >
-                        <MoreVertical className="w-5 h-5" />
-                      </button>
+                currentPageStations.map((station, idx) => {
+                  const target = Math.round(station.votes * 0.5);
+                  const statusColor = getStatusColor(station.aspirantsCount);
 
-                      {openDropdownId === station.id && (
-                        <div
-                          className="fixed z-[10000] w-40 bg-white border rounded-md shadow-lg"
-                          style={{
-                            top: `${dropdownTop}px`,
-                            left: `${dropdownLeft}px`,
-                          }}
+                  return (
+                    <tr
+                      key={station.id}
+                      className="hover:bg-gray-50/70 cursor-pointer transition-colors"
+                      onClick={() => openModal("view", station)}
+                    >
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {startIndex + idx + 1}
+                      </td>
+                      <td className={`px-6 py-4 font-medium ${statusColor}`}>
+                        {station.name}
+                      </td>
+                      <td className="px-6 py-4 text-gray-700">{station.ward}</td>
+                      <td className="px-6 py-4 text-gray-900">
+                        {station.votes.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 text-center text-gray-800 font-medium">
+                        {target.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <span className={statusColor}>
+                          {station.aspirantsCount}
+                        </span>
+                      </td>
+                      <td
+                        className="px-6 py-4 text-center"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          onClick={(e) => toggleDropdown(station.id, e)}
+                          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
                         >
-                          <button
-                            onClick={() => {
-                              setOpenDropdownId(null);
-                              openModal("edit", station);
+                          <MoreVertical className="w-5 h-5 text-gray-600" />
+                        </button>
+
+                        {openDropdownId === station.id && (
+                          <div
+                            className="fixed z-[10000] w-44 bg-white border rounded-lg shadow-xl py-1"
+                            style={{
+                              top: `${dropdownTop}px`,
+                              left: `${dropdownLeft}px`,
                             }}
-                            className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
                           >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDelete(station.id)}
-                            className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))
+                            <button
+                              onClick={() => {
+                                setOpenDropdownId(null);
+                                openModal("edit", station);
+                              }}
+                              className="block w-full text-left px-5 py-2.5 text-sm hover:bg-gray-50"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDelete(station.id)}
+                              className="block w-full text-left px-5 py-2.5 text-sm text-red-600 hover:bg-red-50"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
 
-        {/* Pagination controls */}
+        {/* Pagination */}
         {totalFiltered > 0 && (
-          <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm">
-            <div className="text-gray-700">
+          <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-gray-700">
+            <div>
               Showing {startIndex + 1}–{Math.min(endIndex, totalFiltered)} of{" "}
               {totalFiltered.toLocaleString()}
             </div>
@@ -338,19 +419,19 @@ export default function PollingStationsClient({
               <button
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={safePage === 1}
-                className="px-4 py-2 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+                className="px-5 py-2 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
               >
                 Previous
               </button>
 
-              <span className="px-3 py-2 font-medium">
+              <span className="px-4 py-2 font-medium">
                 Page {safePage} of {totalPages}
               </span>
 
               <button
                 onClick={() => setCurrentPage((p) => p + 1)}
                 disabled={safePage >= totalPages}
-                className="px-4 py-2 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+                className="px-5 py-2 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
               >
                 Next
               </button>
@@ -362,7 +443,7 @@ export default function PollingStationsClient({
         {isOpen && (
           <div className="fixed inset-0 z-50 flex justify-end">
             <div className="absolute inset-0 bg-black/40" onClick={closeModal} />
-            <div className="relative w-full sm:max-w-lg bg-white h-full shadow-2xl flex flex-col">
+            <div className="relative w-full max-w-lg bg-white h-full shadow-2xl flex flex-col">
               <div className="sticky top-0 z-10 bg-white border-b p-5 flex justify-between items-center">
                 <h2 className="text-xl font-bold">
                   {modalMode === "add"
@@ -405,7 +486,7 @@ export default function PollingStationsClient({
                   </div>
                 )}
 
-                {uploadResult && isUploadSuccess(uploadResult) && (
+                {uploadResult && uploadResult.success && (
                   <div className="bg-green-50 border border-green-200 text-green-700 p-4 rounded-lg mb-5">
                     <p className="font-medium">{uploadResult.message}</p>
                     {uploadResult.errors && uploadResult.errors.length > 0 && (
@@ -441,18 +522,17 @@ export default function PollingStationsClient({
                     </p>
                     <p className="mt-2 text-sm text-gray-500">
                       Supported: .csv, .xlsx, .xls<br />
-                      Required columns (case insensitive, no spaces):<br />
-                      stationId, name, county, subCounty, ward<br />
+                      Required columns (case insensitive): stationId, name, county, subCounty, ward<br />
                       votes is optional (number)
                     </p>
                   </label>
                 </div>
 
-                <div className="mt-8 flex gap-4">
+                <div className="mt-8">
                   <button
                     onClick={() => setUploadOpen(false)}
                     disabled={uploading}
-                    className="flex-1 bg-gray-200 hover:bg-gray-300 py-3 rounded-lg font-medium disabled:opacity-50"
+                    className="w-full bg-gray-200 hover:bg-gray-300 py-3 rounded-lg font-medium disabled:opacity-50"
                   >
                     Close
                   </button>

@@ -42,7 +42,6 @@ export default function AspirantsClient({
   const [dropdownTop, setDropdownTop] = useState(0);
   const [dropdownLeft, setDropdownLeft] = useState(0);
 
-  // Mirror server limit on client
   const [rowsPerPage, setRowsPerPage] = useState(limit);
 
   useEffect(() => {
@@ -58,7 +57,6 @@ export default function AspirantsClient({
 
   const toggleDropdown = (id: string, e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
-
     if (openDropdownId === id) {
       setOpenDropdownId(null);
       return;
@@ -105,7 +103,6 @@ export default function AspirantsClient({
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this aspirant?")) return;
-
     try {
       await deleteAspirantAction(id);
       router.refresh();
@@ -115,12 +112,21 @@ export default function AspirantsClient({
     }
   };
 
-  const filteredAspirants = initialAspirants.filter((asp) =>
-    [asp.fullName, asp.tel, asp.position, asp.pollingStationId]
+  // UPDATED SEARCH LOGIC: Includes Polling Station Name
+  const filteredAspirants = initialAspirants.filter((asp) => {
+    const searchStr = [
+      asp.fullName,
+      asp.tel,
+      asp.position,
+      asp.pollingStation?.name, // Search by station name
+      asp.pollingStationId      // Search by station ID
+    ]
+      .filter(Boolean) // Remove undefined/null values
       .join(" ")
-      .toLowerCase()
-      .includes(search.toLowerCase())
-  );
+      .toLowerCase();
+
+    return searchStr.includes(search.toLowerCase());
+  });
 
   const handlePageChange = (newPage: number) => {
     if (newPage < 1 || newPage > totalPages) return;
@@ -134,28 +140,24 @@ export default function AspirantsClient({
     setRowsPerPage(newLimit);
     const params = new URLSearchParams(searchParams.toString());
     params.set("limit", newLimit.toString());
-    params.set("page", "1"); // reset to first page when changing size
+    params.set("page", "1");
     router.push(`?${params.toString()}`);
   };
 
   const getPageNumbers = () => {
     const pages: number[] = [];
     const range = 2;
-
     for (let i = Math.max(1, currentPage - range); i <= Math.min(totalPages, currentPage + range); i++) {
       pages.push(i);
     }
-
     if (pages[0] > 1) {
       pages.unshift(1);
-      if (pages[1] > 2) pages.splice(1, 0, -1); // ellipsis
+      if (pages[1] > 2) pages.splice(1, 0, -1);
     }
-
     if (pages[pages.length - 1] < totalPages) {
       if (pages[pages.length - 1] < totalPages - 1) pages.push(-1);
       pages.push(totalPages);
     }
-
     return pages;
   };
 
@@ -166,18 +168,17 @@ export default function AspirantsClient({
       <div className="max-w-7xl mx-auto">
         <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="bg-[#C0A7A7] p-4 rounded-md w-full sm:w-auto">
-            <h1 className="text-xl sm:text-2xl font-bold">Total aspirants</h1>
+            <h1 className="text-xl sm:text-2xl font-bold">Total voters</h1>
             <p className="text-2xl sm:text-3xl text-purple-600 mt-2">
               {totalAspirants.toLocaleString()}
             </p>
           </div>
         </div>
 
-        {/* Search + Rows per page selector */}
         <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 mb-6">
           <input
             type="text"
-            placeholder="Search aspirants..."
+            placeholder="Search by name, tel, position or station..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full sm:max-w-md px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
@@ -200,7 +201,6 @@ export default function AspirantsClient({
           </div>
         </div>
 
-        {/* Table */}
         <div className="bg-white rounded-lg shadow overflow-x-auto mb-6">
           <table className="w-full min-w-[1000px]">
             <thead className="bg-gray-50 text-xs uppercase tracking-wider">
@@ -287,7 +287,6 @@ export default function AspirantsClient({
           </table>
         </div>
 
-        {/* Pagination footer */}
         {totalPages > 1 && (
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-sm">
             <div className="text-gray-600">
@@ -339,7 +338,6 @@ export default function AspirantsClient({
           </div>
         )}
 
-        {/* Modal / Right-side Drawer */}
         {isOpen && (
           <div className="fixed inset-0 z-50 flex justify-end">
             <div
