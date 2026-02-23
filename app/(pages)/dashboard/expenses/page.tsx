@@ -16,15 +16,32 @@ export default async function ExpensesPage() {
 
   const userId = session.user.id;
 
+  // Fetch user role
+  const userProfile = await prisma.profile.findUnique({
+    where: { userId },
+    select: { role: true },
+  });
+
+  const userRole = (userProfile?.role || "").toLowerCase().trim();
+  const isAdminOrLeader = ["admin", "leader"].includes(userRole);
+
   const expenses = await prisma.expense.findMany({
-    where: { addedById: userId },
+    where: isAdminOrLeader ? {} : { addedById: userId },
     select: {
       id: true,
       describe: true,
       amount: true,
       createdAt: true,
+      // Show who created it (only useful for admins/leaders)
+      user: {
+        select: {
+          name: true,
+        },
+      },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: {
+      createdAt: "desc",
+    },
   });
 
   const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
@@ -33,6 +50,7 @@ export default async function ExpensesPage() {
     <ExpensesClient
       totalExpenses={totalExpenses}
       initialExpenses={expenses}
+      isPrivileged={isAdminOrLeader}
     />
   );
 }

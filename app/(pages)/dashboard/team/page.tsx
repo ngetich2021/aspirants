@@ -13,9 +13,9 @@ export default async function TeamPage() {
 
   const officials = await prisma.profile.findMany({
     where: {
-      role: { not: null },     // all people who have a designation/role
-      // You can make it more specific if needed:
-      // role: { in: ["leader", "coordinator", "supervisor"] }
+      // role: { not: 'user' },     // all people who have a designation/role
+      // // You can make it more specific if needed:
+      role: { in: ["leader", "coordinator", "supervisor","sg","chairperson", "secretary","treasurer"] }
     },
     include: {
       user:          { select: { email: true } },

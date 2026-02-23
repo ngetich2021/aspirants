@@ -10,8 +10,18 @@ export async function saveExpenseAction(formData: FormData) {
 
   const userId = session.user.id;
 
+  // Get role to decide permissions
+  const profile = await prisma.profile.findUnique({
+    where: { userId },
+    select: { role: true },
+  });
+
+  const isAdminOrLeader = ["admin", "leader"].includes(
+    (profile?.role || "").toLowerCase().trim()
+  );
+
   const expenseId = formData.get("expenseId")?.toString() || null;
-  const describe  = formData.get("describe")?.toString().trim() || "";
+  const describe = formData.get("describe")?.toString().trim() || "";
   const amountStr = formData.get("amount")?.toString().trim() || "";
 
   if (!describe || !amountStr) {
@@ -25,13 +35,15 @@ export async function saveExpenseAction(formData: FormData) {
 
   try {
     if (expenseId) {
+      // Edit
       const existing = await prisma.expense.findUnique({
         where: { id: expenseId },
         select: { addedById: true },
       });
 
       if (!existing) return { error: "Expense not found" };
-      if (existing.addedById !== userId) {
+
+      if (!isAdminOrLeader && existing.addedById !== userId) {
         return { error: "You can only edit your own expenses." };
       }
 
@@ -43,6 +55,7 @@ export async function saveExpenseAction(formData: FormData) {
         },
       });
     } else {
+      // Create
       await prisma.expense.create({
         data: {
           describe,
@@ -68,13 +81,23 @@ export async function deleteExpenseAction(expenseId: string) {
 
   const userId = session.user.id;
 
+  const profile = await prisma.profile.findUnique({
+    where: { userId },
+    select: { role: true },
+  });
+
+  const isAdminOrLeader = ["admin", "leader"].includes(
+    (profile?.role || "").toLowerCase().trim()
+  );
+
   const expense = await prisma.expense.findUnique({
     where: { id: expenseId },
     select: { addedById: true },
   });
 
   if (!expense) throw new Error("Expense not found");
-  if (expense.addedById !== userId) {
+
+  if (!isAdminOrLeader && expense.addedById !== userId) {
     throw new Error("You can only delete your own expenses.");
   }
 

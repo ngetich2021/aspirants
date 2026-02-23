@@ -11,16 +11,21 @@ interface Expense {
   describe: string | null;
   amount: number;
   createdAt: Date;
+  user?: {
+    name: string | null;
+  } | null;
 }
 
 interface Props {
   totalExpenses: number;
   initialExpenses: Expense[];
+  isPrivileged: boolean;
 }
 
 export default function ExpensesClient({
   totalExpenses,
   initialExpenses,
+  isPrivileged,
 }: Props) {
   const router = useRouter();
 
@@ -107,7 +112,9 @@ export default function ExpensesClient({
       <div className="max-w-7xl mx-auto">
         <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="bg-[#C0A7A7] p-4 rounded-md w-full sm:w-auto">
-            <h1 className="text-xl sm:text-2xl font-bold">Your Expenses</h1>
+            <h1 className="text-xl sm:text-2xl font-bold">
+              {isPrivileged ? "All Expenses" : "Your Expenses"}
+            </h1>
             <p className="text-2xl sm:text-3xl text-purple-600 mt-2">
               KES {totalExpenses.toLocaleString()}
             </p>
@@ -134,6 +141,7 @@ export default function ExpensesClient({
             <thead className="bg-gray-50 text-xs uppercase">
               <tr>
                 <th className="px-4 sm:px-6 py-3 text-left">#</th>
+                {isPrivileged && <th className="px-4 sm:px-6 py-3 text-left">User</th>}
                 <th className="px-4 sm:px-6 py-3 text-left">Description</th>
                 <th className="px-4 sm:px-6 py-3 text-left">Amount</th>
                 <th className="px-4 sm:px-6 py-3 text-left">Date</th>
@@ -143,7 +151,10 @@ export default function ExpensesClient({
             <tbody className="divide-y divide-gray-200">
               {filteredExpenses.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center text-gray-500">
+                  <td
+                    colSpan={isPrivileged ? 6 : 5}
+                    className="py-12 text-center text-gray-500"
+                  >
                     No expenses found
                   </td>
                 </tr>
@@ -155,6 +166,13 @@ export default function ExpensesClient({
                     onClick={() => openModal("view", exp)}
                   >
                     <td className="px-4 sm:px-6 py-4 text-sm">{index + 1}</td>
+
+                    {isPrivileged && (
+                      <td className="px-4 sm:px-6 py-4 text-sm">
+                        {exp.user?.name || "—"}
+                      </td>
+                    )}
+
                     <td className="px-4 sm:px-6 py-4 text-sm max-w-xs truncate">
                       {exp.describe ?? "—"}
                     </td>

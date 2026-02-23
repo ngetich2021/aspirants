@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { MoreVertical, ChevronLeft, ChevronRight } from "lucide-react";
 import AspirantFormModal from "./AspirantFormModal";
 import { deleteAspirantAction } from "./actions";
+import { useSession } from "next-auth/react";
 
 interface Aspirant {
   id: string;
@@ -163,6 +164,8 @@ export default function AspirantsClient({
 
   const pageNumbers = getPageNumbers();
 
+  const {data:session} = useSession();
+
   return (
     <main className="min-h-screen bg-gray-100 p-4 sm:p-6">
       <div className="max-w-7xl mx-auto">
@@ -237,7 +240,9 @@ export default function AspirantsClient({
                     <td className="px-4 sm:px-6 py-4 text-sm">
                       {asp.pollingStation?.name || asp.pollingStationId}
                     </td>
+                    {session?.user.role == 'sg'|| session?.user.role == 'leader' ? 
                     <td className="px-4 sm:px-6 py-4 text-sm">{asp.tel}</td>
+                    : <td className="px-4 sm:px-6 py-4 text-sm">?</td>}
                     <td className="px-4 sm:px-6 py-4 text-sm">{asp.position}</td>
                     <td className="px-4 sm:px-6 py-4 text-sm">
                       {new Date(asp.createdAt).toLocaleDateString("en-GB", {
@@ -256,12 +261,14 @@ export default function AspirantsClient({
                       >
                         <MoreVertical className="w-5 h-5 text-gray-600" />
                       </button>
-
+                      
                       {openDropdownId === asp.id && (
                         <div
                           className="fixed z-[10000] w-40 bg-white border border-gray-200 rounded-md shadow-lg py-1"
                           style={{ top: `${dropdownTop}px`, left: `${dropdownLeft}px` }}
-                        >
+                        >  
+                        {session?.user.role == 'sg'||session?.user.role == 'leader' ?
+                        <>                       
                           <button
                             onClick={() => {
                               setOpenDropdownId(null);
@@ -277,6 +284,7 @@ export default function AspirantsClient({
                           >
                             Delete
                           </button>
+                          </>: ''}
                         </div>
                       )}
                     </td>
