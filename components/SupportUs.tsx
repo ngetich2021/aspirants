@@ -21,7 +21,11 @@ export default function SupportUs({ onClose, stations }: SupportUsProps) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<ActionResponse | null>(null);
 
-  // For skills form only
+  // Funds only
+  const [paymentMethod, setPaymentMethod] = useState<'mpesa' | 'card'>('mpesa');
+  const [phoneValue, setPhoneValue] = useState(''); // for showing in message
+
+  // Skills only
   const [stationSearch, setStationSearch] = useState('');
 
   const filteredStations = useMemo(() => {
@@ -37,6 +41,11 @@ export default function SupportUs({ onClose, stations }: SupportUsProps) {
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+
+    if (type === 'funds') {
+      formData.set('paymentMethod', paymentMethod);
+      // We already have phoneValue in state for feedback
+    }
 
     startTransition(async () => {
       let res: ActionResponse | undefined;
@@ -57,10 +66,21 @@ export default function SupportUs({ onClose, stations }: SupportUsProps) {
           setType(null);
           setMessage(null);
           setStationSearch('');
-        }, 2200);
+          setPaymentMethod('mpesa');
+          setPhoneValue('');
+        }, 3000);
       }
     });
   };
+
+  const isFunds = type === 'funds';
+  const buttonText = isPending
+    ? 'Processing…'
+    : isFunds
+      ? 'Pay Now'
+      : type === 'gifts'
+        ? 'Submit Gift Offer'
+        : 'Register as Agent';
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -114,6 +134,8 @@ export default function SupportUs({ onClose, stations }: SupportUsProps) {
                   setType(null);
                   setMessage(null);
                   setStationSearch('');
+                  setPaymentMethod('mpesa');
+                  setPhoneValue('');
                 }}
                 className="mb-6 text-blue-600 hover:text-blue-800 font-medium flex items-center gap-2 transition-colors"
               >
@@ -127,7 +149,7 @@ export default function SupportUs({ onClose, stations }: SupportUsProps) {
                   </label>
                   <input
                     name="name"
-                    required
+                    required={type !== 'gifts'} // gifts name optional in your original
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
                     placeholder="Full name"
                   />
@@ -140,26 +162,44 @@ export default function SupportUs({ onClose, stations }: SupportUsProps) {
                   <input
                     name="tel"
                     required
+                    value={phoneValue}
+                    onChange={(e) => setPhoneValue(e.target.value.trim())}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
                     placeholder="+2547xxxxxxxx"
                   />
                 </div>
 
                 {type === 'funds' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      Amount (KES) <span className="text-red-600">*</span>
-                    </label>
-                    <input
-                      name="amount"
-                      type="number"
-                      min="100"
-                      step="1"
-                      required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
-                      placeholder="e.g. 5000"
-                    />
-                  </div>
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Amount (KES) <span className="text-red-600">*</span>
+                      </label>
+                      <input
+                        name="amount"
+                        type="number"
+                        min="50"
+                        step="1"
+                        required
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
+                        placeholder="e.g. 5000"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Pay with <span className="text-red-600">*</span>
+                      </label>
+                      <select
+                        value={paymentMethod}
+                        onChange={(e) => setPaymentMethod(e.target.value as 'mpesa' | 'card')}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white outline-none transition-all"
+                      >
+                        <option value="mpesa">M-Pesa (phone prompt)</option>
+                        <option value="card">Credit / Debit Card</option>
+                      </select>
+                    </div>
+                  </>
                 )}
 
                 {type === 'gifts' && (
@@ -236,11 +276,11 @@ export default function SupportUs({ onClose, stations }: SupportUsProps) {
                   disabled={isPending}
                   className={`w-full py-4 px-6 text-white font-bold rounded-lg transition-colors ${
                     isPending
-                      ? 'bg-gray-400 cursor-not-allowed'
+                      ? 'bg-gray-500 cursor-not-allowed'
                       : 'bg-green-600 hover:bg-green-700 shadow-md'
                   }`}
                 >
-                  {isPending ? 'Submitting...' : `Submit ${type === 'funds' ? 'Donation' : type === 'gifts' ? 'Gift' : 'Agent Registration'}`}
+                  {buttonText}
                 </button>
 
                 {message && (
@@ -250,6 +290,19 @@ export default function SupportUs({ onClose, stations }: SupportUsProps) {
                     }`}
                   >
                     {message.success || message.error}
+
+                    {message.success && type === 'funds' && paymentMethod === 'mpesa' && (
+                      <div className="mt-3 text-left text-sm">
+                        <strong>Next:</strong> Check your phone ({phoneValue || 'the number entered'}) for M-Pesa prompt.<br />
+                        Enter PIN to complete.
+                      </div>
+                    )}
+
+                    {message.success && type === 'funds' && paymentMethod === 'card' && (
+                      <div className="mt-3 text-left text-sm">
+                        You will be redirected to secure card payment page shortly...
+                      </div>
+                    )}
                   </div>
                 )}
               </form>

@@ -141,8 +141,16 @@ model Funds {
   name      String?
   amount    Int
   tel       String?
+  status    String   @default("pending")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+enum FundsStatus {
+  PENDING
+  PENDING_CARD
+  COMPLETED
+  FAILED
 }
 
 model Gifts {
