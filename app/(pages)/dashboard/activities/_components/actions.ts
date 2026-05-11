@@ -131,8 +131,9 @@ export async function deleteActivityAction(id: string): Promise<ActionResult> {
 
 // Report Actions (unchanged — already safe)
 export async function saveReportAction(formData: FormData): Promise<ActionResult> {
+  let currentUserId: string;
   try {
-    await requireUserId();
+    currentUserId = await requireUserId();
   } catch (err) {
     return { success: false, error: (err as Error).message || "Authentication required" };
   }
@@ -146,7 +147,7 @@ export async function saveReportAction(formData: FormData): Promise<ActionResult
 
   try {
     await prisma.report.create({
-      data: { report: reportText, activityId },
+      data: { report: reportText, activityId, addedById: currentUserId },
     });
     revalidatePath("/activities");
     return { success: true };
@@ -157,14 +158,16 @@ export async function saveReportAction(formData: FormData): Promise<ActionResult
 }
 
 export async function deleteReportAction(reportId: string): Promise<ActionResult> {
+  let userId: string;
   try {
-    await requireUserId();
+    userId = await requireUserId();
   } catch (err) {
     return { success: false, error: (err as Error).message || "Authentication required" };
   }
 
   try {
     await prisma.report.delete({ where: { id: reportId } });
+    console.info("[audit] Report", reportId, "deleted by", userId);
     revalidatePath("/activities");
     return { success: true };
   } catch (err) {
@@ -181,6 +184,7 @@ export async function getReportsForActivity(activityId: string) {
       id: true,
       report: true,
       createdAt: true,
+      addedBy: { select: { name: true } },
     },
   });
 }

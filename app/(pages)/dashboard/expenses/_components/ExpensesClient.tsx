@@ -140,7 +140,7 @@ export default function ExpensesClient({
           <table className="w-full min-w-[800px]">
             <thead className="bg-gray-50 text-xs uppercase">
               <tr>
-                <th className="px-4 sm:px-6 py-3 text-left">#</th>
+                <th className="px-4 sm:px-6 py-3 text-left sticky left-0 z-20 bg-gray-50">#</th>
                 {isPrivileged && <th className="px-4 sm:px-6 py-3 text-left">User</th>}
                 <th className="px-4 sm:px-6 py-3 text-left">Description</th>
                 <th className="px-4 sm:px-6 py-3 text-left">Amount</th>
@@ -165,7 +165,7 @@ export default function ExpensesClient({
                     className="hover:bg-gray-50 cursor-pointer"
                     onClick={() => openModal("view", exp)}
                   >
-                    <td className="px-4 sm:px-6 py-4 text-sm">{index + 1}</td>
+                    <td className="px-4 sm:px-6 py-4 text-sm sticky left-0 z-10 bg-white">{index + 1}</td>
 
                     {isPrivileged && (
                       <td className="px-4 sm:px-6 py-4 text-sm">
@@ -186,34 +186,38 @@ export default function ExpensesClient({
                       className="px-4 sm:px-6 py-4 text-center"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <button
-                        onClick={(e) => toggleDropdown(exp.id, e)}
-                        className="p-2 hover:bg-gray-200 rounded-full"
-                      >
-                        <MoreVertical className="w-5 h-5" />
-                      </button>
+                      {isPrivileged && (
+                        <>
+                          <button
+                            onClick={(e) => toggleDropdown(exp.id, e)}
+                            className="p-2 hover:bg-gray-200 rounded-full"
+                          >
+                            <MoreVertical className="w-5 h-5" />
+                          </button>
 
-                      {openDropdownId === exp.id && (
-                        <div
-                          className="fixed z-[10000] w-40 bg-white border rounded-md shadow-lg"
-                          style={{ top: `${dropdownTop}px`, left: `${dropdownLeft}px` }}
-                        >
-                          <button
-                            onClick={() => {
-                              setOpenDropdownId(null);
-                              openModal("edit", exp);
-                            }}
-                            className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDelete(exp.id)}
-                            className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                          >
-                            Delete
-                          </button>
-                        </div>
+                          {openDropdownId === exp.id && (
+                            <div
+                              className="fixed z-[10000] w-40 bg-white border rounded-md shadow-lg"
+                              style={{ top: `${dropdownTop}px`, left: `${dropdownLeft}px` }}
+                            >
+                              <button
+                                onClick={() => {
+                                  setOpenDropdownId(null);
+                                  openModal("edit", exp);
+                                }}
+                                className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDelete(exp.id)}
+                                className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </>
                       )}
                     </td>
                   </tr>

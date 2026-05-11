@@ -10,15 +10,13 @@ export async function saveExpenseAction(formData: FormData) {
 
   const userId = session.user.id;
 
-  // Get role to decide permissions
   const profile = await prisma.profile.findUnique({
     where: { userId },
-    select: { role: true },
+    select: { adminRole: true },
   });
 
-  const isAdminOrLeader = ["admin", "leader"].includes(
-    (profile?.role || "").toLowerCase().trim()
-  );
+  const adminRoles = ["super_admin", "county_admin", "subcounty_admin", "ward_admin", "pollingstation_admin"];
+  const isAdminOrLeader = adminRoles.includes((profile?.adminRole || "").toLowerCase().trim());
 
   const expenseId = formData.get("expenseId")?.toString() || null;
   const describe = formData.get("describe")?.toString().trim() || "";
@@ -83,12 +81,11 @@ export async function deleteExpenseAction(expenseId: string) {
 
   const profile = await prisma.profile.findUnique({
     where: { userId },
-    select: { role: true },
+    select: { adminRole: true },
   });
 
-  const isAdminOrLeader = ["admin", "leader"].includes(
-    (profile?.role || "").toLowerCase().trim()
-  );
+  const adminRoles = ["super_admin", "county_admin", "subcounty_admin", "ward_admin", "pollingstation_admin"];
+  const isAdminOrLeader = adminRoles.includes((profile?.adminRole || "").toLowerCase().trim());
 
   const expense = await prisma.expense.findUnique({
     where: { id: expenseId },

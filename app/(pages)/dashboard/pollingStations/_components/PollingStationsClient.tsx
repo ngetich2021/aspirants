@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { MoreVertical, Upload } from "lucide-react";
 import PollingStationFormModal from "./PollingStationFormModal";
 import { deletePollingStationAction, uploadPollingStationsAction } from "./actions";
+import { ROLE_LABELS, ROLE_COLORS } from "@/lib/rbac";
 
 interface PollingStation {
   id: string;
@@ -16,9 +17,18 @@ interface PollingStation {
   aspirantsCount: number;
 }
 
+type ProfileInfo = {
+  userId: string;
+  fullName: string | null;
+  tel: string | null;
+  adminRole: string | null;
+};
+
 interface Props {
   totalStations: number;
   initialStations: PollingStation[];
+  isAdmin: boolean;
+  profiles: Record<string, ProfileInfo[]>;
 }
 
 interface DeleteSuccess {
@@ -58,6 +68,8 @@ type FilterOption = "all" | "red" | "orange" | "green";
 export default function PollingStationsClient({
   totalStations,
   initialStations,
+  isAdmin,
+  profiles,
 }: Props) {
   const router = useRouter();
 
@@ -222,23 +234,25 @@ export default function PollingStationsClient({
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4">
-            <button
-              onClick={() => openModal("add")}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-7 py-3 rounded-lg font-medium shadow-sm"
-            >
-              + Add Single Station
-            </button>
-            <button
-              onClick={() => setUploadOpen(true)}
-              className="bg-green-600 hover:bg-green-700 text-white px-7 py-3 rounded-lg font-medium flex items-center gap-2 shadow-sm"
-            >
-              <Upload size={18} /> Upload Excel/CSV
-            </button>
-          </div>
+          {isAdmin && (
+            <div className="flex flex-col sm:flex-row gap-4">
+              <button
+                onClick={() => openModal("add")}
+                className="bg-purple-600 hover:bg-purple-700 text-white px-7 py-3 rounded-lg font-medium shadow-sm"
+              >
+                + Add Single Station
+              </button>
+              <button
+                onClick={() => setUploadOpen(true)}
+                className="bg-green-600 hover:bg-green-700 text-white px-7 py-3 rounded-lg font-medium flex items-center gap-2 shadow-sm"
+              >
+                <Upload size={18} /> Upload Excel/CSV
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Status cards – always horizontal, smaller size */}
+        {/* Status cards */}
         <div className="mb-8 flex flex-row flex-wrap justify-center gap-4 sm:gap-6">
           <div className="bg-white p-4 rounded-xl shadow border border-red-100 flex flex-col items-center min-w-[110px]">
             <div className="w-14 h-14 rounded-full bg-red-500 flex items-center justify-center text-white text-2xl font-bold mb-2">
@@ -315,19 +329,19 @@ export default function PollingStationsClient({
           <table className="w-full min-w-[1000px]">
             <thead className="bg-gray-50 text-xs uppercase tracking-wider text-gray-600">
               <tr>
-                <th className="px-6 py-4 text-left">S/NO</th>
+                <th className="px-6 py-4 text-left sticky left-0 z-20 bg-gray-50">S/NO</th>
                 <th className="px-6 py-4 text-left">Name</th>
                 <th className="px-6 py-4 text-left">Ward</th>
                 <th className="px-6 py-4 text-left">Votes</th>
                 <th className="px-6 py-4 text-center">Target (50%)</th>
                 <th className="px-6 py-4 text-center">Voters</th>
-                <th className="px-6 py-4 text-center">Actions</th>
+                {isAdmin && <th className="px-6 py-4 text-center">Actions</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {currentPageStations.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-16 text-center text-gray-500 italic">
+                  <td colSpan={isAdmin ? 7 : 6} className="py-16 text-center text-gray-500 italic">
                     {search || filter !== "all"
                       ? "No matching stations found"
                       : "No polling stations yet"}
@@ -344,7 +358,7 @@ export default function PollingStationsClient({
                       className="hover:bg-gray-50/70 cursor-pointer transition-colors"
                       onClick={() => openModal("view", station)}
                     >
-                      <td className="px-6 py-4 text-sm text-gray-600">
+                      <td className="px-6 py-4 text-sm text-gray-600 sticky left-0 z-10 bg-white">
                         {startIndex + idx + 1}
                       </td>
                       <td className={`px-6 py-4 font-medium ${statusColor}`}>
@@ -362,43 +376,45 @@ export default function PollingStationsClient({
                           {station.aspirantsCount}
                         </span>
                       </td>
-                      <td
-                        className="px-6 py-4 text-center"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <button
-                          onClick={(e) => toggleDropdown(station.id, e)}
-                          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                      {isAdmin && (
+                        <td
+                          className="px-6 py-4 text-center"
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          <MoreVertical className="w-5 h-5 text-gray-600" />
-                        </button>
-
-                        {openDropdownId === station.id && (
-                          <div
-                            className="fixed z-[10000] w-44 bg-white border rounded-lg shadow-xl py-1"
-                            style={{
-                              top: `${dropdownTop}px`,
-                              left: `${dropdownLeft}px`,
-                            }}
+                          <button
+                            onClick={(e) => toggleDropdown(station.id, e)}
+                            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
                           >
-                            <button
-                              onClick={() => {
-                                setOpenDropdownId(null);
-                                openModal("edit", station);
+                            <MoreVertical className="w-5 h-5 text-gray-600" />
+                          </button>
+
+                          {openDropdownId === station.id && (
+                            <div
+                              className="fixed z-[10000] w-44 bg-white border rounded-lg shadow-xl py-1"
+                              style={{
+                                top: `${dropdownTop}px`,
+                                left: `${dropdownLeft}px`,
                               }}
-                              className="block w-full text-left px-5 py-2.5 text-sm hover:bg-gray-50"
                             >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleDelete(station.id)}
-                              className="block w-full text-left px-5 py-2.5 text-sm text-red-600 hover:bg-red-50"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        )}
-                      </td>
+                              <button
+                                onClick={() => {
+                                  setOpenDropdownId(null);
+                                  openModal("edit", station);
+                                }}
+                                className="block w-full text-left px-5 py-2.5 text-sm hover:bg-gray-50"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDelete(station.id)}
+                                className="block w-full text-left px-5 py-2.5 text-sm text-red-600 hover:bg-red-50"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   );
                 })
@@ -466,6 +482,32 @@ export default function PollingStationsClient({
                   onSuccess={handleSuccess}
                   onClose={closeModal}
                 />
+
+                {/* Assigned People section */}
+                {modalMode === "view" && selectedStation && (
+                  <div className="mt-6 border-t pt-5">
+                    <h3 className="text-base font-semibold text-gray-800 mb-3">Assigned People</h3>
+                    {(profiles[selectedStation.id] ?? []).length === 0 ? (
+                      <p className="text-sm text-gray-500">No assigned profiles for this station.</p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {(profiles[selectedStation.id] ?? []).map((p) => (
+                          <li key={p.userId} className="flex items-center justify-between text-sm">
+                            <span className="font-medium text-gray-800">{p.fullName || "—"}</span>
+                            <div className="flex items-center gap-2 text-gray-500">
+                              {p.tel && <span>{p.tel}</span>}
+                              {p.adminRole && p.adminRole !== "user" && (
+                                <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${ROLE_COLORS[p.adminRole] ?? "bg-gray-100 text-gray-600"}`}>
+                                  {ROLE_LABELS[p.adminRole] ?? p.adminRole}
+                                </span>
+                              )}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>

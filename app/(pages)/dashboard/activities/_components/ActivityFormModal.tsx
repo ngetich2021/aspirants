@@ -105,8 +105,8 @@ export default function ActivityFormModal({
             <option value="" disabled>
               Select supervisor...
             </option>
-            {officials.map((name) => (
-              <option key={name} value={name}>
+            {officials.filter(Boolean).map((name, i) => (
+              <option key={`${i}-${name}`} value={name}>
                 {name}
               </option>
             ))}

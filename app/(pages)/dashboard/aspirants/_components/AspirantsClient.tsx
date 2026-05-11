@@ -6,6 +6,7 @@ import { MoreVertical, ChevronLeft, ChevronRight } from "lucide-react";
 import AspirantFormModal from "./AspirantFormModal";
 import { deleteAspirantAction } from "./actions";
 import { useSession } from "next-auth/react";
+import { ROLE_LABELS, ROLE_COLORS } from "@/lib/rbac";
 
 interface Aspirant {
   id: string;
@@ -15,6 +16,7 @@ interface Aspirant {
   pollingStationId: string;
   pollingStation?: { name: string };
   createdAt: Date;
+  adminRole?: string | null;
 }
 
 interface Props {
@@ -34,6 +36,9 @@ export default function AspirantsClient({
 }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  const { data: session } = useSession();
+  const isAdmin = ["super_admin","county_admin","subcounty_admin","ward_admin","pollingstation_admin"].includes(session?.user?.adminRole ?? "");
 
   const [isOpen, setIsOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"add" | "edit" | "view">("add");
@@ -113,16 +118,15 @@ export default function AspirantsClient({
     }
   };
 
-  // UPDATED SEARCH LOGIC: Includes Polling Station Name
   const filteredAspirants = initialAspirants.filter((asp) => {
     const searchStr = [
       asp.fullName,
       asp.tel,
       asp.position,
-      asp.pollingStation?.name, // Search by station name
-      asp.pollingStationId      // Search by station ID
+      asp.pollingStation?.name,
+      asp.pollingStationId,
     ]
-      .filter(Boolean) // Remove undefined/null values
+      .filter(Boolean)
       .join(" ")
       .toLowerCase();
 
@@ -163,8 +167,6 @@ export default function AspirantsClient({
   };
 
   const pageNumbers = getPageNumbers();
-
-  const {data:session} = useSession();
 
   return (
     <main className="min-h-screen bg-gray-100 p-4 sm:p-6">
@@ -208,19 +210,20 @@ export default function AspirantsClient({
           <table className="w-full min-w-[1000px]">
             <thead className="bg-gray-50 text-xs uppercase tracking-wider">
               <tr>
-                <th className="px-4 sm:px-6 py-3 text-left">S/NO</th>
+                <th className="px-4 sm:px-6 py-3 text-left sticky left-0 z-20 bg-gray-50">S/NO</th>
                 <th className="px-4 sm:px-6 py-3 text-left">name</th>
                 <th className="px-4 sm:px-6 py-3 text-left">Pollingstation</th>
                 <th className="px-4 sm:px-6 py-3 text-left">tel</th>
                 <th className="px-4 sm:px-6 py-3 text-left">position</th>
+                <th className="px-4 sm:px-6 py-3 text-left">Admin Role</th>
                 <th className="px-4 sm:px-6 py-3 text-left">date</th>
-                <th className="px-4 sm:px-6 py-3 text-center">actions</th>
+                {isAdmin && <th className="px-4 sm:px-6 py-3 text-center">actions</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {filteredAspirants.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-gray-500">
+                  <td colSpan={isAdmin ? 8 : 7} className="py-12 text-center text-gray-500">
                     No aspirants found
                   </td>
                 </tr>
@@ -231,7 +234,7 @@ export default function AspirantsClient({
                     className="hover:bg-gray-50 cursor-pointer"
                     onClick={() => openModal("view", asp)}
                   >
-                    <td className="px-4 sm:px-6 py-4 text-sm">
+                    <td className="px-4 sm:px-6 py-4 text-sm sticky left-0 z-10 bg-white">
                       {(currentPage - 1) * limit + index + 1}
                     </td>
                     <td className="px-4 sm:px-6 py-4 font-medium text-sm">
@@ -240,10 +243,19 @@ export default function AspirantsClient({
                     <td className="px-4 sm:px-6 py-4 text-sm">
                       {asp.pollingStation?.name || asp.pollingStationId}
                     </td>
-                    {session?.user.role == 'sg'|| session?.user.role == 'leader' ? 
-                    <td className="px-4 sm:px-6 py-4 text-sm">{asp.tel}</td>
-                    : <td className="px-4 sm:px-6 py-4 text-sm">?</td>}
+                    <td className="px-4 sm:px-6 py-4 text-sm">
+                      {isAdmin ? asp.tel : "?"}
+                    </td>
                     <td className="px-4 sm:px-6 py-4 text-sm">{asp.position}</td>
+                    <td className="px-4 sm:px-6 py-4 text-sm">
+                      {asp.adminRole && asp.adminRole !== "user" ? (
+                        <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${ROLE_COLORS[asp.adminRole] ?? "bg-gray-100 text-gray-600"}`}>
+                          {ROLE_LABELS[asp.adminRole] ?? asp.adminRole}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </td>
                     <td className="px-4 sm:px-6 py-4 text-sm">
                       {new Date(asp.createdAt).toLocaleDateString("en-GB", {
                         day: "2-digit",
@@ -251,43 +263,42 @@ export default function AspirantsClient({
                         year: "2-digit",
                       }).replace(/\//g, "-")}
                     </td>
-                    <td
-                      className="px-4 sm:px-6 py-4 text-center"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button
-                        onClick={(e) => toggleDropdown(asp.id, e)}
-                        className="p-2 hover:bg-gray-200 rounded-full transition"
+                    {isAdmin && (
+                      <td
+                        className="px-4 sm:px-6 py-4 text-center"
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        <MoreVertical className="w-5 h-5 text-gray-600" />
-                      </button>
-                      
-                      {openDropdownId === asp.id && (
-                        <div
-                          className="fixed z-[10000] w-40 bg-white border border-gray-200 rounded-md shadow-lg py-1"
-                          style={{ top: `${dropdownTop}px`, left: `${dropdownLeft}px` }}
-                        >  
-                        {session?.user.role == 'sg'||session?.user.role == 'leader' ?
-                        <>                       
-                          <button
-                            onClick={() => {
-                              setOpenDropdownId(null);
-                              openModal("edit", asp);
-                            }}
-                            className="block w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
+                        <button
+                          onClick={(e) => toggleDropdown(asp.id, e)}
+                          className="p-2 hover:bg-gray-200 rounded-full transition"
+                        >
+                          <MoreVertical className="w-5 h-5 text-gray-600" />
+                        </button>
+
+                        {openDropdownId === asp.id && (
+                          <div
+                            className="fixed z-[10000] w-40 bg-white border border-gray-200 rounded-md shadow-lg py-1"
+                            style={{ top: `${dropdownTop}px`, left: `${dropdownLeft}px` }}
                           >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDelete(asp.id)}
-                            className="block w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
-                          >
-                            Delete
-                          </button>
-                          </>: ''}
-                        </div>
-                      )}
-                    </td>
+                            <button
+                              onClick={() => {
+                                setOpenDropdownId(null);
+                                openModal("edit", asp);
+                              }}
+                              className="block w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDelete(asp.id)}
+                              className="block w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))
               )}

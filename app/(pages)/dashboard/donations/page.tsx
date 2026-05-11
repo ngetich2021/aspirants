@@ -1,5 +1,7 @@
-// app/donations/page.tsx
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 import { prisma } from '@/lib/prisma';
+import { hasAccess } from "@/lib/rbac";
 import DonationsClient from './_components/DonationsClient';
 
 export const revalidate = 1;
@@ -57,6 +59,11 @@ async function getAgents() {
 }
 
 export default async function DonationsPage() {
+  const session = await auth();
+  if (!session?.user?.id) redirect("/");
+  if (!hasAccess("donations", session.user.adminRole ?? "user", session.user.permissions ?? null))
+    redirect("/dashboard/aspirants");
+
   const [totals, funds, gifts, agents] = await Promise.all([
     getTotals(),
     getFunds(),

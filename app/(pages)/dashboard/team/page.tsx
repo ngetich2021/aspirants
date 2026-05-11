@@ -1,10 +1,18 @@
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
+import { hasAccess } from "@/lib/rbac";
 import TeamClient from "./_components/TeamClient";
 import { getUsersStationsDesignations } from "./_components/actionsTeam";
 
 export const revalidate = 10;
 
 export default async function TeamPage() {
+  const session = await auth();
+  if (!session?.user?.id) redirect("/");
+  if (!hasAccess("team", session.user.adminRole ?? "user", session.user.permissions ?? null))
+    redirect("/dashboard/aspirants");
+
   const { users, stations, designations } = await getUsersStationsDesignations();
 
   const usersWithEmail = users.filter(
@@ -36,6 +44,7 @@ export default async function TeamPage() {
     stationId:    o.pollingStationId,
     stationName:  o.pollingStation?.name ?? null,
     image:        o.image,
+    adminRole:    o.adminRole ?? "user",
   }));
 
   return (

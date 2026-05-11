@@ -5,7 +5,7 @@ import prisma from '@/lib/prisma';
 export type ActionResponse = {
   success?: string;
   error?: string;
-  redirectUrl?: string; // for card gateways that redirect
+  redirectUrl?: string;
 };
 
 export async function createFundsDonation(formData: FormData): Promise<ActionResponse> {
@@ -24,12 +24,9 @@ export async function createFundsDonation(formData: FormData): Promise<ActionRes
       return { error: 'Valid Kenyan phone number required (e.g. 0712345678)' };
     }
 
-    // Format phone for M-Pesa (2547xxxxxxxx)
     const phone = telRaw.startsWith('0') ? '254' + telRaw.slice(1) : telRaw;
 
     if (paymentMethod === 'mpesa') {
-      // ────────────────────── M-PESA STK PUSH (Daraja) ──────────────────────
-      // You MUST fill these from .env
       const SHORTCODE = process.env.MPESA_SHORTCODE;
       const PASSKEY = process.env.MPESA_PASSKEY;
       const CONSUMER_KEY = process.env.MPESA_CONSUMER_KEY;
@@ -40,7 +37,6 @@ export async function createFundsDonation(formData: FormData): Promise<ActionRes
         return { error: 'M-Pesa configuration missing. Contact support.' };
       }
 
-      // 1. Get OAuth token
       const auth = Buffer.from(`${CONSUMER_KEY}:${CONSUMER_SECRET}`).toString('base64');
       const tokenRes = await fetch(
         'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials',
@@ -48,10 +44,8 @@ export async function createFundsDonation(formData: FormData): Promise<ActionRes
       );
 
       if (!tokenRes.ok) throw new Error('M-Pesa auth failed');
-
       const { access_token } = await tokenRes.json();
 
-      // 2. STK Push
       const timestamp = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14);
       const password = Buffer.from(`${SHORTCODE}${PASSKEY}${timestamp}`).toString('base64');
 
@@ -84,70 +78,76 @@ export async function createFundsDonation(formData: FormData): Promise<ActionRes
         return { error: stkData.errorMessage || 'M-Pesa request failed. Try again.' };
       }
 
-      // Save pending record
       await prisma.funds.create({
-        data: { name, amount, tel: telRaw, status: 'pending' /* add status field if needed */ },
+        data: { name, amount, tel: telRaw, status: 'pending' },
       });
 
-      return {
-        success: 'M-Pesa prompt sent! Check your phone and enter PIN.',
-      };
+      return { success: 'M-Pesa prompt sent! Check your phone and enter PIN.' };
     }
 
     if (paymentMethod === 'card') {
-      // ────────────────────── FLUTTERWAVE CARD (example) ──────────────────────
-      // You MUST fill these from .env
-      const FLW_SECRET_KEY = process.env.FLUTTERWAVE_SECRET_KEY;
-      const FLW_PUBLIC_KEY = process.env.FLUTTERWAVE_PUBLIC_KEY;
+      const PESAPAL_CONSUMER_KEY = process.env.PESAPAL_CONSUMER_KEY;
+      const PESAPAL_CONSUMER_SECRET = process.env.PESAPAL_CONSUMER_SECRET;
+      const PESAPAL_NOTIFICATION_ID = process.env.PESAPAL_NOTIFICATION_ID;
 
-      if (!FLW_SECRET_KEY || !FLW_PUBLIC_KEY) {
-        return { error: 'Card payment configuration missing. Contact support.' };
+      if (!PESAPAL_CONSUMER_KEY || !PESAPAL_CONSUMER_SECRET || !PESAPAL_NOTIFICATION_ID) {
+        return { error: 'Pesapal configuration missing. Contact support.' };
       }
 
-      // Create Flutterwave payment link (redirect flow - simplest)
-      const txRef = `card-${Date.now()}`;
-      const redirectUrl = `${process.env.NEXT_PUBLIC_APP_URL}/thank-you?tx_ref=${txRef}`;
+      const txRef = `pesapal-card-${Date.now()}`;
+      const callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL}/thank-you?tx_ref=${txRef}`;
+
+      const authRes = await fetch('https://cybqa.pesapal.com/pesapalv3/api/Auth/RequestToken', {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          consumer_key: PESAPAL_CONSUMER_KEY,
+          consumer_secret: PESAPAL_CONSUMER_SECRET,
+        }),
+      });
+
+      if (!authRes.ok) throw new Error('Pesapal authentication failed');
+      const { token } = await authRes.json();
 
       const payload = {
-        tx_ref: txRef,
-        amount,
+        id: txRef,
         currency: 'KES',
-        redirect_url: redirectUrl,
-        payment_options: 'card',
-        customer: {
-          email: 'donor@example.com', // collect email if needed
-          name: name || 'Anonymous Donor',
-          phonenumber: telRaw,
-        },
-        customizations: {
-          title: 'Support Donation',
-          description: 'Thank you for supporting our cause',
+        amount,
+        description: 'Support donation',
+        callback_url: callbackUrl,
+        notification_id: PESAPAL_NOTIFICATION_ID,
+        billing_address: {
+          email_address: 'donor@example.com',
+          phone_number: telRaw,
+          country_code: 'KE',
+          first_name: name || 'Anonymous Donor',
+          last_name: '',
         },
       };
 
-      const res = await fetch('https://api.flutterwave.com/v3/payments', {
+      const orderRes = await fetch('https://cybqa.pesapal.com/pesapalv3/api/Transactions/SubmitOrderRequest', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${FLW_SECRET_KEY}`,
+          Accept: 'application/json',
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
+      const orderData = await orderRes.json();
 
-      if (data.status !== 'success') {
-        return { error: data.message || 'Card payment initiation failed.' };
+      if (orderData.status !== '200' || orderData.error) {
+        return { error: orderData.message || 'Pesapal payment initiation failed.' };
       }
 
-      // Save pending (you can update on webhook later)
       await prisma.funds.create({
         data: { name, amount, tel: telRaw, status: 'pending_card' },
       });
 
       return {
-        success: 'Redirecting to secure card payment page...',
-        redirectUrl: data.data.link, // client can window.location = this
+        success: 'Redirecting to secure Pesapal payment page...',
+        redirectUrl: orderData.redirect_url,
       };
     }
 
@@ -158,22 +158,15 @@ export async function createFundsDonation(formData: FormData): Promise<ActionRes
   }
 }
 
-// The other two actions remain almost the same (unchanged logic)
-
 export async function createGiftDonation(formData: FormData): Promise<ActionResponse> {
   try {
     const name = (formData.get('name') as string | null)?.trim() || null;
     const describe = (formData.get('describe') as string)?.trim();
     const tel = (formData.get('tel') as string | null)?.trim() || null;
 
-    if (!describe) {
-      return { error: 'Please describe your gift or service.' };
-    }
+    if (!describe) return { error: 'Please describe your gift or service.' };
 
-    await prisma.gifts.create({
-      data: { name, describe, tel },
-    });
-
+    await prisma.gifts.create({ data: { name, describe, tel } });
     return { success: 'Thank you! Your gift offer has been received.' };
   } catch (err) {
     console.error('Gift error:', err);
@@ -192,10 +185,7 @@ export async function createSkillAgent(formData: FormData): Promise<ActionRespon
       return { error: 'All fields are required.' };
     }
 
-    await prisma.agent.create({
-      data: { fullName, tel, pollingStationId, position },
-    });
-
+    await prisma.agent.create({ data: { fullName, tel, pollingStationId, position } });
     return { success: 'Thank you! You have been registered as an agent.' };
   } catch (err) {
     console.error('Agent error:', err);

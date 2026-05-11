@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
 }
 
 model User {
@@ -20,12 +20,28 @@ model User {
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
   expenses      Expense[]
+  reportsMade   Report[]   @relation("ReportAuthor")
 }
 
 model Profile {
-  userId           String          @id
-  email            String?
-  role             String?
+  userId         String  @id
+
+  // Designation-based display role (chairperson, secretary, etc.)
+  role           String?
+
+  // Hierarchical RBAC role
+  // Values: super_admin | county_admin | subcounty_admin | ward_admin | pollingstation_admin | user
+  adminRole      String? @default("user")
+
+  // Geographic scope for county/subcounty/ward admins
+  adminCounty    String?
+  adminSubCounty String?
+  adminWard      String?
+
+  // JSON array of Section keys the user is allowed to access.
+  // null = voters only (base). Admins always bypass this check.
+  permissions    String?
+
   fullName         String?
   designationId    String?
   designation      Designation?    @relation(fields: [designationId], references: [id], onDelete: SetNull)
@@ -34,6 +50,7 @@ model Profile {
   image            String?
   pollingStationId String?
   pollingStation   PollingStation? @relation(fields: [pollingStationId], references: [id], onDelete: SetNull)
+  email            String?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
@@ -132,6 +149,8 @@ model Report {
   report     String
   activityId String
   activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  addedById  String?
+  addedBy    User?    @relation("ReportAuthor", fields: [addedById], references: [id], onDelete: SetNull)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
@@ -144,13 +163,6 @@ model Funds {
   status    String   @default("pending")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-}
-
-enum FundsStatus {
-  PENDING
-  PENDING_CARD
-  COMPLETED
-  FAILED
 }
 
 model Gifts {
@@ -173,13 +185,14 @@ model Expense {
 }
 
 model Message {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   name           String
   tel            String
   pollingStation String
   message        String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  readAt         DateTime?
 }
 
 model Designation {

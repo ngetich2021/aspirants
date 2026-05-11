@@ -1,23 +1,22 @@
-
-import { PrismaPg } from "@prisma/adapter-pg";
-import { Pool } from "pg";
+import "server-only";
 import { PrismaClient } from "./generated/prisma/client";
+import { TursoHttpAdapter } from "./turso-adapter";
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-  throw new Error("Missing DATABASE_URL environment variable");
-}
+const url = process.env.TURSO_DATABASE_URL;
+const token = process.env.TURSO_AUTH_TOKEN;
 
-const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
+if (!url) throw new Error("Missing TURSO_DATABASE_URL");
+if (!token) throw new Error("Missing TURSO_AUTH_TOKEN");
+
+const adapter = new TursoHttpAdapter(url, token);
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-// Avoid multiple instances in dev (hot reloading)
 export const prisma =
-  globalForPrisma.prisma ?? new PrismaClient({ adapter });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  globalForPrisma.prisma ?? new PrismaClient({ adapter: adapter as any });
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { MoreVertical, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { useSession } from "next-auth/react";
 import ActivityFormModal from "./ActivityFormModal";
 import { deleteActivityAction, getReportsForActivity } from "./actions";
 import ReportsModal from "./ReportsModal";
@@ -22,6 +23,7 @@ interface Report {
   id: string;
   report: string;
   createdAt: Date;
+  addedBy?: { name: string | null } | null;
 }
 
 interface Props {
@@ -43,6 +45,9 @@ export default function ActivitiesClient({
 }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  const { data: session } = useSession();
+  const isAdmin = ["super_admin","county_admin","subcounty_admin","ward_admin","pollingstation_admin"].includes(session?.user?.adminRole ?? "");
 
   const [isOpen, setIsOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"add" | "edit" | "view">("add");
@@ -208,7 +213,7 @@ export default function ActivitiesClient({
   return (
     <main className="min-h-screen bg-gray-100 p-4 sm:p-6">
       <div className="max-w-7xl mx-auto">
-        {/* Header + Add button - unchanged */}
+        {/* Header + Add button */}
         <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="bg-[#C0A7A7] p-4 rounded-md w-full sm:w-auto">
             <h1 className="text-xl sm:text-2xl font-bold">Total activities</h1>
@@ -217,15 +222,17 @@ export default function ActivitiesClient({
             </p>
           </div>
 
-          <button
-            onClick={() => openModal("add")}
-            className="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2"
-          >
-            <Plus className="w-5 h-5" /> Activity
-          </button>
+          {isAdmin && (
+            <button
+              onClick={() => openModal("add")}
+              className="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2"
+            >
+              <Plus className="w-5 h-5" /> Activity
+            </button>
+          )}
         </div>
 
-        {/* Search + entries selector - unchanged */}
+        {/* Search + entries selector */}
         <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 mb-6">
           <input
             type="text"
@@ -257,7 +264,7 @@ export default function ActivitiesClient({
           <table className="w-full min-w-[1100px]">
             <thead className="bg-gray-50 text-xs uppercase tracking-wider">
               <tr>
-                <th className="px-4 sm:px-6 py-3 text-left">S/NO</th>
+                <th className="px-4 sm:px-6 py-3 text-left sticky left-0 z-20 bg-gray-50">S/NO</th>
                 <th className="px-4 sm:px-6 py-3 text-left">name</th>
                 <th className="px-4 sm:px-6 py-3 text-left">description</th>
                 <th className="px-4 sm:px-6 py-3 text-left">supervisor</th>
@@ -279,7 +286,7 @@ export default function ActivitiesClient({
                     className="hover:bg-gray-50 cursor-pointer"
                     onClick={() => openModal("view", act)}
                   >
-                    <td className="px-4 sm:px-6 py-4 text-sm">
+                    <td className="px-4 sm:px-6 py-4 text-sm sticky left-0 z-10 bg-white">
                       {(currentPage - 1) * limit + index + 1}
                     </td>
                     <td className="px-4 sm:px-6 py-4 font-medium text-sm">
@@ -310,15 +317,17 @@ export default function ActivitiesClient({
                           className="fixed z-[10000] w-40 bg-white border border-gray-200 rounded-md shadow-lg py-1"
                           style={{ top: `${dropdownTop}px`, left: `${dropdownLeft}px` }}
                         >
-                          <button
-                            onClick={() => {
-                              setOpenDropdownId(null);
-                              openModal("edit", act);
-                            }}
-                            className="block w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
-                          >
-                            Edit
-                          </button>
+                          {isAdmin && (
+                            <button
+                              onClick={() => {
+                                setOpenDropdownId(null);
+                                openModal("edit", act);
+                              }}
+                              className="block w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
+                            >
+                              Edit
+                            </button>
+                          )}
 
                           <button
                             onClick={() => loadAndOpenReports(act)}
@@ -327,12 +336,14 @@ export default function ActivitiesClient({
                             Reports
                           </button>
 
-                          <button
-                            onClick={() => handleDelete(act.id)}
-                            className="block w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
-                          >
-                            Delete
-                          </button>
+                          {isAdmin && (
+                            <button
+                              onClick={() => handleDelete(act.id)}
+                              className="block w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
+                            >
+                              Delete
+                            </button>
+                          )}
                         </div>
                       )}
                     </td>
@@ -343,7 +354,7 @@ export default function ActivitiesClient({
           </table>
         </div>
 
-        {/* Pagination - unchanged */}
+        {/* Pagination */}
         {totalPages > 1 && (
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-sm">
             <div className="text-gray-600">
@@ -438,6 +449,7 @@ export default function ActivitiesClient({
             activityId={reportsModalActivity.id}
             activityName={reportsModalActivity.name}
             reports={reports}
+            isAdmin={isAdmin}
             onClose={() => setReportsModalActivity(null)}
             onAddNew={openAddReport}
             onReportDeleted={refreshReports}

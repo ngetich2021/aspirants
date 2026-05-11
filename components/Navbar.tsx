@@ -84,13 +84,12 @@ export default function Navbar({ stations }: NavbarProps) {
           <div 
             className="w-6 h-6 relative cursor-pointer" 
             onClick={handleFlagClick}
-            title="Click exactly 5 times for secret access"
           >
-            <Image 
-              src="/kenya2.png" 
-              alt="Kenya flag – click exactly 5 times to login" 
-              fill 
-              className="object-contain" 
+            <Image
+              src="/kenya2.png"
+              alt="Kenya flag"
+              fill
+              className="object-contain"
             />
           </div>
         </div>
@@ -105,16 +104,15 @@ export default function Navbar({ stations }: NavbarProps) {
           </div>
 
           <div className="flex items-center gap-4">
-            <div 
-              className="w-6 h-6 relative cursor-pointer" 
+            <div
+              className="w-6 h-6 relative cursor-pointer"
               onClick={handleFlagClick}
-              title="Click exactly 5 times for secret access"
             >
-              <Image 
-                src="/kenya2.png" 
-                alt="Kenya flag – click exactly 5 times to login" 
-                fill 
-                className="object-contain" 
+              <Image
+                src="/kenya2.png"
+                alt="Kenya flag"
+                fill
+                className="object-contain"
               />
             </div>
 

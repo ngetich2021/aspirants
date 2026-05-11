@@ -21,11 +21,9 @@ export default function SupportUs({ onClose, stations }: SupportUsProps) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<ActionResponse | null>(null);
 
-  // Funds only
   const [paymentMethod, setPaymentMethod] = useState<'mpesa' | 'card'>('mpesa');
-  const [phoneValue, setPhoneValue] = useState(''); // for showing in message
+  const [phoneValue, setPhoneValue] = useState('');
 
-  // Skills only
   const [stationSearch, setStationSearch] = useState('');
 
   const filteredStations = useMemo(() => {
@@ -44,19 +42,14 @@ export default function SupportUs({ onClose, stations }: SupportUsProps) {
 
     if (type === 'funds') {
       formData.set('paymentMethod', paymentMethod);
-      // We already have phoneValue in state for feedback
     }
 
     startTransition(async () => {
       let res: ActionResponse | undefined;
 
-      if (type === 'funds') {
-        res = await createFundsDonation(formData);
-      } else if (type === 'gifts') {
-        res = await createGiftDonation(formData);
-      } else if (type === 'skills') {
-        res = await createSkillAgent(formData);
-      }
+      if (type === 'funds') res = await createFundsDonation(formData);
+      else if (type === 'gifts') res = await createGiftDonation(formData);
+      else if (type === 'skills') res = await createSkillAgent(formData);
 
       setMessage(res ?? { error: 'Something went wrong' });
 
@@ -149,7 +142,7 @@ export default function SupportUs({ onClose, stations }: SupportUsProps) {
                   </label>
                   <input
                     name="name"
-                    required={type !== 'gifts'} // gifts name optional in your original
+                    required={type !== 'gifts'}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
                     placeholder="Full name"
                   />
@@ -196,7 +189,7 @@ export default function SupportUs({ onClose, stations }: SupportUsProps) {
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white outline-none transition-all"
                       >
                         <option value="mpesa">M-Pesa (phone prompt)</option>
-                        <option value="card">Credit / Debit Card</option>
+                        <option value="card">Credit / Debit Card (Pesapal)</option>
                       </select>
                     </div>
                   </>

@@ -1,16 +1,17 @@
 'use client';
 
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, useTransition, useMemo } from 'react';
+import { markMessageRead } from '@/components/actionsmessage';
 
 type MessageItem = {
   id: string;
   name: string;
   tel: string;
   pollingStation: string;
-  createdAt: string;   // formatted date string
+  createdAt: string;
   message: string;
+  readAt: string | null;
 };
 
 const pageSizeOptions = [20, 50, 100, 200, 500, 1000, 5000];
@@ -33,9 +34,11 @@ export default function MessagesClient({
   const [isPending, startTransition] = useTransition();
   const [openMessageId, setOpenMessageId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  
-  // Track IDs of messages that have been opened/read
-  const [readMessages, setReadMessages] = useState<Set<string>>(new Set());
+
+  // Optimistic read tracking — seeded from DB state, updated on click
+  const [readIds, setReadIds] = useState<Set<string>>(
+    () => new Set(initialMessages.filter((m) => m.readAt).map((m) => m.id))
+  );
 
   const updateUrl = (newParams: Record<string, string>) => {
     const params = new URLSearchParams(searchParams);
@@ -49,12 +52,11 @@ export default function MessagesClient({
   };
 
   const handleReadClick = (id: string) => {
-    // Toggle the accordion
     setOpenMessageId(openMessageId === id ? null : id);
-    
-    // Add to read set if not already there
-    if (!readMessages.has(id)) {
-      setReadMessages((prev) => new Set(prev).add(id));
+
+    if (!readIds.has(id)) {
+      setReadIds((prev) => new Set(prev).add(id));
+      markMessageRead(id).catch(console.error);
     }
   };
 
@@ -69,18 +71,29 @@ export default function MessagesClient({
   };
 
   const filtered = useMemo(() => {
-    if (!searchQuery.trim()) return initialMessages;
-    const q = searchQuery.toLowerCase().trim();
-    return initialMessages.filter(m =>
-      m.name.toLowerCase().includes(q) ||
-      m.tel.includes(q) ||
-      m.pollingStation.toLowerCase().includes(q) ||
-      m.message.toLowerCase().includes(q)
-    );
-  }, [initialMessages, searchQuery]);
+    const base = searchQuery.trim()
+      ? (() => {
+          const q = searchQuery.toLowerCase().trim();
+          return initialMessages.filter(
+            (m) =>
+              m.name.toLowerCase().includes(q) ||
+              m.tel.includes(q) ||
+              m.pollingStation.toLowerCase().includes(q) ||
+              m.message.toLowerCase().includes(q)
+          );
+        })()
+      : initialMessages;
+
+    // Unread first, read pushed to bottom; within each group preserve original order
+    return [...base].sort((a, b) => {
+      const aRead = readIds.has(a.id) ? 1 : 0;
+      const bRead = readIds.has(b.id) ? 1 : 0;
+      return aRead - bRead;
+    });
+  }, [initialMessages, searchQuery, readIds]);
 
   const showingFrom = (currentPage - 1) * pageSize + 1;
-  const showingTo   = Math.min(showingFrom + filtered.length - 1, total);
+  const showingTo = Math.min(showingFrom + filtered.length - 1, total);
 
   return (
     <main className="min-h-screen bg-gray-100">
@@ -98,7 +111,7 @@ export default function MessagesClient({
                 <input
                   type="text"
                   value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search name, phone, station, message..."
                   className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                 />
@@ -115,7 +128,7 @@ export default function MessagesClient({
                   disabled={isPending}
                   className="border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
                 >
-                  {pageSizeOptions.map(n => (
+                  {pageSizeOptions.map((n) => (
                     <option key={n} value={n}>{n}</option>
                   ))}
                 </select>
@@ -128,11 +141,11 @@ export default function MessagesClient({
               <thead className="bg-gray-200 text-gray-700 uppercase text-xs">
                 <tr>
                   <th className="px-4 py-3">S/NO</th>
-                  <th className="px-4 py-3">name</th>
-                  <th className="px-4 py-3">Pollingstation</th>
-                  <th className="px-4 py-3">tel</th>
-                  <th className="px-4 py-3">date</th>
-                  <th className="px-4 py-3">actions</th>
+                  <th className="px-4 py-3">Name</th>
+                  <th className="px-4 py-3">Polling Station</th>
+                  <th className="px-4 py-3">Tel</th>
+                  <th className="px-4 py-3">Date</th>
+                  <th className="px-4 py-3">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -145,28 +158,42 @@ export default function MessagesClient({
                 ) : (
                   filtered.map((msg, idx) => {
                     const serial = searchQuery ? idx + 1 : showingFrom + idx;
-                    const hasBeenRead = readMessages.has(msg.id);
+                    const isRead = readIds.has(msg.id);
 
                     return (
-                      <tr key={msg.id} className="border-b hover:bg-gray-50 align-top">
+                      <tr
+                        key={msg.id}
+                        className={`border-b align-top transition-colors ${
+                          isRead ? 'bg-gray-50 text-gray-400' : 'hover:bg-gray-50'
+                        }`}
+                      >
                         <td className="px-4 py-3">{serial}</td>
                         <td className="px-4 py-3">{msg.name}</td>
                         <td className="px-4 py-3">{msg.pollingStation}</td>
                         <td className="px-4 py-3 font-mono">{msg.tel}</td>
                         <td className="px-4 py-3">{msg.createdAt}</td>
                         <td className="px-4 py-3">
-                          <button
-                            onClick={() => handleReadClick(msg.id)}
-                            className={`font-medium transition-colors ${
-                              hasBeenRead ? 'text-black' : 'text-green-600 hover:text-green-800'
-                            }`}
-                          >
-                            read
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleReadClick(msg.id)}
+                              className={`font-medium transition-colors ${
+                                isRead
+                                  ? 'text-gray-400 hover:text-gray-600'
+                                  : 'text-green-600 hover:text-green-800'
+                              }`}
+                            >
+                              {isRead ? 'view' : 'read'}
+                            </button>
+                            {isRead && (
+                              <span className="text-xs text-gray-400 italic">already read</span>
+                            )}
+                          </div>
 
                           {openMessageId === msg.id && (
-                            <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded text-gray-800 text-sm max-w-xs sm:max-w-md">
-                              <div className="font-medium mb-1">From: {msg.name} • {msg.tel}</div>
+                            <div className="mt-2 p-3 bg-white border border-gray-200 rounded text-gray-700 text-sm max-w-xs sm:max-w-md shadow-sm">
+                              <div className="font-medium mb-1 text-gray-600">
+                                From: {msg.name} • {msg.tel}
+                              </div>
                               <p className="whitespace-pre-wrap">{msg.message}</p>
                             </div>
                           )}

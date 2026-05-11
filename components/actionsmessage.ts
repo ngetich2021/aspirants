@@ -3,6 +3,14 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
+export async function markMessageRead(id: string): Promise<void> {
+  await prisma.message.update({
+    where: { id },
+    data: { readAt: new Date() },
+  });
+  revalidatePath("/dashboard");
+}
+
 export async function sendMessageAction(formData: FormData) {
   // Extract and clean data
   const name = formData.get("name")?.toString().trim();

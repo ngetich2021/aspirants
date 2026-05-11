@@ -8,22 +8,24 @@ interface Report {
   id: string;
   report: string;
   createdAt: Date;
+  addedBy?: { name: string | null } | null;
 }
 
-// Define Props interface here (this was missing or incomplete)
 interface ReportsModalProps {
   activityId: string;
   activityName: string;
-  reports: Report[];               // ← this line was missing
+  reports: Report[];
+  isAdmin: boolean;
   onClose: () => void;
   onAddNew: () => void;
-  onReportDeleted: () => Promise<void>;  // or () => void if you don't await it
+  onReportDeleted: () => Promise<void>;
 }
 
 export default function ReportsModal({
   activityId,
   activityName,
   reports,
+  isAdmin,
   onClose,
   onAddNew,
   onReportDeleted,
@@ -34,7 +36,7 @@ export default function ReportsModal({
     const result = await deleteReportAction(id);
 
     if (result.success) {
-      onReportDeleted();   // this will trigger refreshReports in parent
+      onReportDeleted();
     } else {
       alert(result.error || "Failed to delete report");
     }
@@ -72,7 +74,7 @@ export default function ReportsModal({
                   <th className="px-4 py-3 text-left">S/NO</th>
                   <th className="px-4 py-3 text-left">Report</th>
                   <th className="px-4 py-3 text-left">Date</th>
-                  <th className="px-4 py-3 text-center">Action</th>
+                  {isAdmin && <th className="px-4 py-3 text-center">Action</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -83,17 +85,22 @@ export default function ReportsModal({
                       <div className="line-clamp-4 whitespace-pre-wrap">{r.report}</div>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
-                      {format(r.createdAt, "dd-MM-yy HH:mm")}
+                      <div>{format(r.createdAt, "dd-MM-yy HH:mm")}</div>
+                      {r.addedBy?.name && (
+                        <div className="text-xs text-gray-500 mt-0.5">by {r.addedBy.name}</div>
+                      )}
                     </td>
-                    <td className="px-4 py-4 text-center">
-                      <button
-                        onClick={() => handleDelete(r.id)}
-                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-full transition"
-                        title="Delete report"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </td>
+                    {isAdmin && (
+                      <td className="px-4 py-4 text-center">
+                        <button
+                          onClick={() => handleDelete(r.id)}
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-full transition"
+                          title="Delete report"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { deleteOfficialAction } from "./actionsTeam";
 import AddOfficialForm from "./AddOfficialForm";
 import ViewDesignations from "./ViewDesignations";
+import { ADMIN_ROLES, ROLE_LABELS, ROLE_COLORS } from "@/lib/rbac";
 
 type User = { id: string; email: string };
 type Station = { id: string; name: string };
@@ -20,6 +22,7 @@ type Official = {
   stationId: string | null;
   stationName: string | null;
   image: string | null;
+  adminRole?: string | null;
 };
 
 interface TeamClientProps {
@@ -39,6 +42,9 @@ export default function TeamClient({
   initialOfficials,
   initialCount,
 }: TeamClientProps) {
+  const { data: session } = useSession();
+  const isAdmin = ADMIN_ROLES.includes((session?.user?.adminRole ?? "") as typeof ADMIN_ROLES[number]);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
@@ -140,20 +146,21 @@ export default function TeamClient({
           <table className="w-full min-w-[1100px]">
             <thead className="bg-gray-100 border-b">
               <tr>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 w-16">S/NO</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 w-16 sticky left-0 z-20 bg-gray-100">S/NO</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 w-24">Photo</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Name</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Designation</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Role</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Tel</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Tel 2</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Station</th>
-                <th className="px-6 py-4 text-right text-sm font-semibold text-gray-700 w-32">Actions</th>
+                {isAdmin && <th className="px-6 py-4 text-right text-sm font-semibold text-gray-700 w-32">Actions</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-16 text-center text-gray-500 text-lg">
+                  <td colSpan={isAdmin ? 9 : 8} className="py-16 text-center text-gray-500 text-lg">
                     {searchTerm ? "No matches" : "No officials yet"}
                   </td>
                 </tr>
@@ -165,7 +172,7 @@ export default function TeamClient({
                     className="hover:bg-gray-50 cursor-pointer"
                     onClick={() => handleEdit(o)}
                   >
-                    <td className="px-6 py-4 text-sm font-medium text-gray-700">{sn}</td>
+                    <td className="px-6 py-4 text-sm font-medium text-gray-700 sticky left-0 z-10 bg-white">{sn}</td>
 
                     <td className="px-6 py-4">
                       {o.image ? (
@@ -190,38 +197,49 @@ export default function TeamClient({
                         {o.designation || "—"}
                       </span>
                     </td>
+                    <td className="px-6 py-4">
+                      {o.adminRole && o.adminRole !== "user" ? (
+                        <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${ROLE_COLORS[o.adminRole] ?? "bg-gray-100 text-gray-600"}`}>
+                          {ROLE_LABELS[o.adminRole] ?? o.adminRole}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </td>
                     <td className="px-6 py-4 text-sm text-gray-600">{o.tel || "—"}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{o.tel2 || "—"}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{o.stationName || "—"}</td>
 
-                    <td className="px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
-                      <button
-                        onClick={e => {
-                          e.stopPropagation();
-                          toggleMenu(o.userId, e);
-                        }}
-                        className="p-2 rounded-lg hover:bg-gray-200"
-                      >
-                        ⋮
-                      </button>
+                    {isAdmin && (
+                      <td className="px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
+                        <button
+                          onClick={e => {
+                            e.stopPropagation();
+                            toggleMenu(o.userId, e);
+                          }}
+                          className="p-2 rounded-lg hover:bg-gray-200"
+                        >
+                          ⋮
+                        </button>
 
-                      {openMenuId === o.userId && (
-                        <div className="absolute right-6 mt-1 w-40 bg-white rounded-lg shadow-xl border z-50">
-                          <button
-                            onClick={() => handleEdit(o)}
-                            className="block w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-100"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDelete(o)}
-                            className="block w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      )}
-                    </td>
+                        {openMenuId === o.userId && (
+                          <div className="absolute right-6 mt-1 w-40 bg-white rounded-lg shadow-xl border z-50">
+                            <button
+                              onClick={() => handleEdit(o)}
+                              className="block w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-100"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDelete(o)}
+                              className="block w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 );
               })}
